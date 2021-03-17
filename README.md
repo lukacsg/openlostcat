@@ -75,9 +75,12 @@ based on logical rules defined in JSON for tags of OpenStreetMap objects located
 
 ...
 
-## Demo
-
+### Requirements, Environment
 ...
+
+### Demo
+...
+
 
 ## General Usage
 
@@ -125,11 +128,11 @@ The `properties` part is optional, where general directives can be specified for
 
 If a name (JSON key) starts with the character `#` under the definitions of `categoryRules`, it is treated as a _reference_, that is, a named subexpression (part of a rule), which can be referenced from multiple category definitions. This way, repeated parts of rules do not have to be explicitly duplicated and whenever a change is necessary, it can be done at one place.
 
-Remark: References starting with `##` are category-level (a.k.a. bool-level) references, while a single `#` name prefix means a set-level (a.k.a. filter-level) reference. See the explanation at the examples below.
+Remark: References starting with `##` are _category-level_ (a.k.a. _bool-level_) references, while a single `#` name prefix means a (tag-bundle-)_set-level_ (a.k.a. _filter-level_) reference. See the explanation in the examples below.
 
 ### Category Catalog (Rule Collection) Properties
 
-Currently only `evaluationStrategy` is supported. Its possible values:
+Currently only `evaluationStrategy` is supported in `properties`. Its possible values are:
 * `all` : A location is evaluated for matching with each defined category and the labels of all matching categories are assigned. 
 * `firstMatching` : A location is evaluated for matching the categories in their order of appearance in the catalog, and the label of the first matching category is assigned.
 
@@ -137,20 +140,18 @@ If no properties are given, `firstMatching` is assumed by default.
 
 
 
-## Category Rule Features by Example
+## Simple Category Rule Features by Example
 
-...
 
-### Atomic filter
+### Simple Tag-Value Checking
+
 Checks whether a key is present in the tag bundle and the value of the tag equals the desirable value. 
-
-Values could be a single value or a list of single values.
-
 
 attributes: 
 
  - key: the name of the tag which has to be investigated
  - values: the possibly values of the tags
+
 
 ```
 {
@@ -158,61 +159,113 @@ attributes:
 }
 ```
 
+Values could be a single value or a list of single values.
+
 If null is presented in the list means that the key is not mandatory to be presented in the tags but it is than the values can be only in the values set.
 
+### Multiple Tag-Value Checking
 
+(and)
+
+### Alternative Tag-Value Checking
+
+(or)
+
+### Negative Condition
+
+(not)
+
+### Implication Condition
+
+(impl with all quantifier)
+
+
+### All-Condition (universal quantification)
 ...
+
+### Any-Condition (existential quantification)
+...
+
+## Complex Rule Cases and Language Background
+
+### Filter semantics and set(/filter)-level operations 
 
 Basically operators works as filter. Every operator has an apply function which get a list of tags and produces a subset of this list.
 It returns with the filtered set.
+...
 
-##### FilterNOT
-FilterNOT can be use as negation. It provides the complementary set of the underlying operator result.
-
-##### FilterAND
-##### FilterOR
-##### FilterConst
-
-##### BoolConst
-#### Category
-#### CategoryCatalog
-
-
-
-
-
-
-
-## Rule Syntax Reference
+#### Quantifier Wrapping 
 
 ...
 
-Category ::= BoolConst | FilterAND (Rule with a restriction to FilterAND) | [Rule, ...]
-BoolConst ::= bool (true | false)
-Rule ::= FilterAND | FilterOR
-FilterNOT ::= FilterAND | FilterOR
-FilterOR ::= [FilterAND | FilterOR, ...]
-FilterAND ::= {Tuple, ...}
-Tuple ::= "__AND..." : FilterAND | "__OR..." : FilterOR | "__NOT..." : FilterNOT | SimpleOp
-SimpleOp ::= str (starts not with "__AND", "__OR", "__NOT") : SingleValue | [SingleValue, ...]
-SingleValue ::= bool | str | int | null
+#### Boolean semantics and category(/bool)-level operations 
 
+...
+
+
+
+## Reusing Subexpressions by References
+
+...
+
+## Rule Syntax Reference
+
+The rule syntax is summarized below in the form of a generative grammar:
+ 
+
+```
+CategoryOrRefDef ::= CategoryDef | BoolRefDef | FilterRefDef
+BoolRefDef ::= { BoolRefName = StandaloneBoolRule }
+BoolRefName ::= "##.*"
+FilterRefDef ::= { FilterRefName = StandaloneFilterRule }
+FilterRefName ::= "#[^#].*"
+CategoryDef ::= { CategoryName = StandaloneRule }
+CategoryName ::= "[^#].*"
+
+StandaloneBoolRule ::= bool | BoolAndObj | BoolOrObj | BoolRefName | StandaloneFilterRule
+BoolAndObj ::= { KeyValueBoolRule, ... }
+BoolOrObj ::= [ StandaloneBoolRule, ... ]
+KeyValueBoolRule ::= 
+    "__AND_.*"  : BoolAndObj | 
+    "__OR_.*"   : BoolOrObj | 
+    "__IMPL_.*" : BoolOrObj | 
+    "__NOT_.*"  : StandaloneBoolRule | 
+    "__ALL_.*"  : StandaloneFilterRule | 
+    "__ANY_.*"  : StandaloneFilterRule | 
+    "__REF_.*"  : BoolRefName |
+    "__BOOLCONST_.*"  : bool |
+    KeyValueFilterRule
+
+StandaloneFilterRule ::= bool | FilterAndObj | FilterOrObj | FilterRefName
+FilterAndObj ::= { KeyValueFilterRule, ... }
+FilterOrObj ::= [ StandaloneFilterRule, ... ]
+KeyValueFilterRule ::= 
+    "__AND_.*"  : FilterAndObj | 
+    "__OR_.*"   : FilterOrObj | 
+    "__IMPL_.*" : FilterOrObj | 
+    "__NOT_.*"  : StandaloneFilterRule | 
+    "__REF_.*"  : FilterRefName |
+    "__FILTERCONST_.*": bool |
+    AtomicFilter
+
+AtomicFilter ::= "[^_].*" : ValueOrList
+ValueOrList ::= SingleValue | [SingleValue, ...]
+SingleValue ::= bool | str | int | null
+```
 
 where
- - bool, str, int, null : the corresponding json type
- - [x,..]  :  json list of elements x
- - {tuple,.. }  : json dict elements of tuples  /(key, value) pairs/
- - x | y : x or y elements can be presented here
- - (...) : some additional notes
- - "txt..." : json string which starts by "txt"
- 
-SingleValue conversions in AtomicFilter operator:
+ - bool, str, int, null : the corresponding JSON type
+ - \[ x, ... \]  :  JSON array (list) of elements of type x
+ - { t, ... }  : json object (dict) elements of tuples (key-value pairs of type t
+ - x | y : an element of type x or y
+ - "..." : JSON string matching the given regexp (.* stands for any sequence of characters, \[^x\] stands for a character not being x)
+  
+SingleValue conversions/semantics in atomic filters:
 
- - bool: "yes" if true; "no" if false
- - str: str
+ - bool: true is mapped to "yes"; false to "no"
+ - str: str (no conversion for strings)
  - int: string representation of int 
- - null: it means that the key must not be represented in the tag list
-
+ - null: the key is optional in the tag bundle
 
 
 ## Further Info and Contribution

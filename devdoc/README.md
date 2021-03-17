@@ -16,11 +16,25 @@ immutable ...
 
 atomic values ...
 
+## Category, CategoryCatalog
+
+..
+
+
 ## Operators, Expressions
 
 Type of logic... - univariate first-order, ~tuple calculus
 
 Expressive power..., but extension is possible
+
+
+### Elements (classes)
+#### Operators
+...
+
+methods
+ - apply
+ - init: ...
 
 
 Two levels:
@@ -70,7 +84,7 @@ for quantifiers: hash table for exact / at least/most counts
 
 ![information flow diagram](infflowdiagram.png)
 
-## Parsing
+## Parsers and Parsing
 
 ![information flow diagram for parsing](infflowdiagram_parse.png)
 
