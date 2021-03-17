@@ -21,6 +21,8 @@ based on logical rules defined in JSON for tags of OpenStreetMap objects located
 
 * ... and what is your use case...?
 
+
+
 ## Feature Overwiew
 
 * Query OpenStretMap objects at locations given by WGS 84 coordinates via Overpass API (customizable proximity distance)
@@ -87,70 +89,104 @@ The file _osmqueryutils/ask\_osm.py_ contains OpenStreetMap-specific query strin
 
 After querying the OpenStreetMap objects around the locations, the _categorize(...)_ method of _MainOsmCategorizer_ must be called for each location separately to assign location category labels based on the parsed rules.
 
+
+
+## Category Catalog (Rule Collection) Format
+
+The basic skeleton of the expected JSON structure is as follows. It must be a valid JSON object or file.
+
+
+```
+{
+     "type": "CategoryRuleCollection",
+     "properties": {
+         "evaluationStrategy": "all"
+     },
+     "categoryRules": [
+        {
+            "category_or_reference_1_name": ...rules_of_category_or_reference_1...
+        },
+        {
+            "category_or_reference_2": ...rules_of_category_or_reference_2...
+        },
+        ...further_category_or_reference_definitions...
+     ]
+}
+```
+
+The attribute `type` must always be given in the above form, in order to make sure the intention of the JSON object/file is a category rule collection for OpenLostCat.
+
+Rule definitions must be given in the form of a JSON array, each of its elements containing a category or a reference (named reusable subexpression) definition with its rules.
+Such a definition must be a json object with a single key, which is the name of the category or reference. An identifier starting with `#` denotes a reference, otherwise a category. Rules follow as JSON objects or arrays as shown below.
+
+The `properties` part is optional, where general directives can be specified for the whole categorization process.
+
+### References: named subexpressions
+
+If a name (JSON key) starts with the character `#` under the definitions of `categoryRules`, it is treated as a _reference_, that is, a named subexpression (part of a rule), which can be referenced from multiple category definitions. This way, repeated parts of rules do not have to be explicitly duplicated and whenever a change is necessary, it can be done at one place.
+
+Remark: References starting with `##` are category-level (a.k.a. bool-level) references, while a single `#` name prefix means a set-level (a.k.a. filter-level) reference. See the explanation at the examples below.
+
+### Category Catalog (Rule Collection) Properties
+
+Currently only `evaluationStrategy` is supported. Its possible values:
+* `all` : A location is evaluated for matching with each defined category and the labels of all matching categories are assigned. 
+* `firstMatching` : A location is evaluated for matching the categories in their order of appearance in the catalog, and the label of the first matching category is assigned.
+
+If no properties are given, `firstMatching` is assumed by default.
+
+
+
 ## Category Rule Features by Example
 
 ...
 
-## Category Catalog (Rule Collection) Syntax Reference
+### Atomic filter
+Checks whether a key is present in the tag bundle and the value of the tag equals the desirable value. 
 
-...
+Values could be a single value or a list of single values.
 
-### Elements (classes)
-#### Operators
-Basically operators works as filter. Every operator has an apply function which get a list of tags and produces a subset of this list.
-
-##### AtomicFilter
-It checks whether a key is presented in the tags list and the value of the tag meets with the desirable values. It returns with the filtered set.
 
 attributes: 
 
  - key: the name of the tag which has to be investigated
  - values: the possibly values of the tags
 
-methods
- - apply
- - init: a tuple of key and value
 ```
-op = Sipmle(("key", ["value1", "value2"]))
+{
+    highway = tertiary
+}
 ```
-
-Key could be
-
-Values could be a single value or a list of single values.
-
-More detail see the Syntax.
 
 If null is presented in the list means that the key is not mandatory to be presented in the tags but it is than the values can be only in the values set.
 
-If null is the 
+
+...
+
+Basically operators works as filter. Every operator has an apply function which get a list of tags and produces a subset of this list.
+It returns with the filtered set.
 
 ##### FilterNOT
 FilterNOT can be use as negation. It provides the complementary set of the underlying operator result.
 
-attributes: 
-
- - one operator
-
-methods
- - apply
- - init:
-```
-op = Sipmle(("key", ["value1", "value2"]))
-FilterNOT(op)
-```
-
-
 ##### FilterAND
 ##### FilterOR
+##### FilterConst
+
 ##### BoolConst
 #### Category
 #### CategoryCatalog
 
 
-### Syntax
-The Sytax or categories file. JSON file format is used so it must be a valid JSON file.
 
-CategoryCatalog ::= Category | [Category, ...]
+
+
+
+
+## Rule Syntax Reference
+
+...
+
 Category ::= BoolConst | FilterAND (Rule with a restriction to FilterAND) | [Rule, ...]
 BoolConst ::= bool (true | false)
 Rule ::= FilterAND | FilterOR
@@ -177,10 +213,12 @@ SingleValue conversions in AtomicFilter operator:
  - int: string representation of int 
  - null: it means that the key must not be represented in the tag list
 
+
+
 ## Further Info and Contribution
 
 See the Developers' Documentation in [devdoc](devdoc/).
 
-Contact the creators Gábor Lukács ([lukacsg](https://github.com/lukacsg)) and András Molnár ([zarandras](https://github.com/zarandras)) with any questions or suggestions.
+Contact the creators Gábor Lukács ([lukacsg](https://github.com/lukacsg)) and András Molnár ([zarandras](https://github.com/zarandras)) with any questions, suggestions or contributions.
 
 
