@@ -23,7 +23,7 @@ based on logical rules defined in JSON for tags of OpenStreetMap objects located
 
 ## Feature Overwiew
 
-* Query OpenStretMap objects at locations given by WGS coordinates via Overpass API (customizable proximity distance)
+* Query OpenStretMap objects at locations given by WGS 84 coordinates via Overpass API (customizable proximity distance)
 
 * Assignment of user-defined location category labels to the given locations, based on queried OpenStreetMap objects in their proximity
 
@@ -87,7 +87,11 @@ The file _osmqueryutils/ask\_osm.py_ contains OpenStreetMap-specific query strin
 
 After querying the OpenStreetMap objects around the locations, the _categorize(...)_ method of _MainOsmCategorizer_ must be called for each location separately to assign location category labels based on the parsed rules.
 
-## Features in Detail
+## Category Rule Features by Example
+
+...
+
+## Category Catalog (Rule Collection) Syntax Reference
 
 ...
 
@@ -175,6 +179,8 @@ SingleValue conversions in AtomicFilter operator:
 
 ## Further Info and Contribution
 
-...
+See the Developers' Documentation in [devdoc](devdoc/).
+
+Contact the creators Gábor Lukács ([lukacsg](https://github.com/lukacsg)) and András Molnár ([zarandras](https://github.com/zarandras)) with any questions or suggestions.
 
 
