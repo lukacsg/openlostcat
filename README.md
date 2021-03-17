@@ -194,11 +194,11 @@ Basically operators works as filter. Every operator has an apply function which 
 It returns with the filtered set.
 ...
 
-#### Quantifier Wrapping 
+### Quantifier Wrapping 
 
 ...
 
-#### Boolean semantics and category(/bool)-level operations 
+### Boolean semantics and category(/bool)-level operations 
 
 ...
 
