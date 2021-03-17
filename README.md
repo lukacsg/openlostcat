@@ -1,13 +1,41 @@
-# OpenLostCat - Open Logic-based Simple Tag-bundle Categorizer
+# OpenLostCat - A location categorizer for OpenStreetMap
 
-## Base idea and motivation
+## What is it?
 
+OpenLostCat (Open Logic-based Simple Tag-bundle Categorizer) is a utility written in Python for data analysts, engineers and scientists 
+who want to determine the characteristics of geolocated points in their datasets. 
+OpenLostCat does the job by assigning category labels to each data point 
+based on user-defined logical rules for tags of OpenStreetMap objects located in its proximity.
+
+### Typical Use Cases
+
+Given a point dataset of events or incidents, see where they happened in terms of co-located or nearby geographical objects (type of area, nearby streets or point features such as amenities or others).
+
+Given a point dataset of events or incidents, see whether their attributes correlate with specific location characteristics.
+
+Given a set of geotagged photos or media posts, determine where they were made in terms of present or absent geographic feature types or constellations (how many of them were posted at which type of location).
+
+Given a set of candidate locations for specific activities, determine the most or least suitable ones based on what each location provides or features.
+
+Given the locations of self-managed facilities, create an overview of which (and how many) of them is located at a given type of location, and whether there is any correlation in the type of location and the facility condition. 
+
+... and what is your use case...?
+
+## Feature Overwiew
+
+...
 
 ## Getting started
 
+...
+
 ## Demo
 
-## Details
+...
+
+## Features in Detail
+
+...
 
 ### Elements (classes)
 #### Operators
