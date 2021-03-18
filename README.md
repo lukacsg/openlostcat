@@ -69,7 +69,7 @@ based on logical rules defined in JSON for tags of OpenStreetMap objects located
 
 ## Licence
 
-...
+[Apache 2.0.](./LICENCE)
 
 ## Getting started
 
