@@ -13,8 +13,7 @@
          },
          {
             "##pt_accessible": [
-                {"public_transport": "stop_position"},
-                {"public_transport": "platform"},
+                {"public_transport": ["stop_position", "platform"]},
                 {"amenity": "ferry_terminal"}
             ]
          },

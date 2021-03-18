@@ -90,9 +90,9 @@ The initializer parses the given category rules and becomes ready for categorizi
 
 The file _osmqueryutils/ask\_osm.py_ contains OpenStreetMap-specific query strings and functions for single and multiple locations given by coordinates in different type of datasets. The appropriate function should be used to query the map objects with their tags in the required proximity of our locations.
 
-After querying the OpenStreetMap objects around the locations, the _categorize(...)_ method of _MainOsmCategorizer_ must be called for each location separately to assign location category labels based on the parsed rules.
+After querying the OpenStreetMap objects around the locations, the _categorize(...)_ method of _MainOsmCategorizer_ must be called for each location separately to assign location category labels based on the parsed rules. 
 
-
+The returning data is either a tuple (for single-category-matching) or a list of tuples containing the index of the category (in the order of appearance in the rule collection file), the name of the category and, optionally, debug information. If no category matches, the returned index is -1, the name is Null and the debug info remains empty.
 
 ## Category Catalog (Rule Collection) Format
 
@@ -155,21 +155,60 @@ attributes:
 
 ```
 {
-    highway = tertiary
+    "public_transport": "stop_position"
 }
 ```
 
 Values could be a single value or a list of single values.
 
+```
+{"public_transport": ["stop_position", "platform"] },
+```
+
 If null is presented in the list means that the key is not mandatory to be presented in the tags but it is than the values can be only in the values set.
+
+??? NULL ???
 
 ### Multiple Tag-Value Checking
 
 (and)
 
+subway:
+
+```
+{
+    "public_transport": "stop_position",
+    "subway": true
+}
+```
+
 ### Alternative Tag-Value Checking
 
 (or)
+
+[
+                    {"light_rail": true},
+                    {"subway": true},
+                    {"train": true}
+                ]
+                
+combined with other :
+
+                "pt_primary_accessible": {
+                "public_transport": "stop_position",
+                "__OR_primary_clause": [
+                    {"light_rail": true},
+                    {"subway": true},
+                    {"train": true}
+                ]
+            }
+
+### Default (Fallback) Category
+
+if firstMatch : 
+
+"pt_nonaccessible": true
+
 
 ### Negative Condition
 
@@ -185,6 +224,8 @@ If null is presented in the list means that the key is not mandatory to be prese
 
 ### Any-Condition (existential quantification)
 ...
+
+
 
 ## Complex Rule Cases and Language Background
 
@@ -206,7 +247,7 @@ It returns with the filtered set.
 
 ## Reusing Subexpressions by References
 
-...
+... wheelchair... , mix...
 
 ## Rule Syntax Reference
 
@@ -266,6 +307,8 @@ SingleValue conversions/semantics in atomic filters:
  - str: str (no conversion for strings)
  - int: string representation of int 
  - null: the key is optional in the tag bundle
+
+Printing the categorizer outputs the abstract syntax tree of the parsed category catalog, where the operators on set/filter level are written with lowercase and the operators on category/bool level with uppercase letters.
 
 
 ## Further Info and Contribution
