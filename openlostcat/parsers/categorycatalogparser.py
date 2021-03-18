@@ -24,13 +24,15 @@ class CategoryCatalogParser:
     """Top-level JSON key for the catalog properties
     """
 
-    def __init__(self, category_or_refdef_parser=CategoryOrRefDefParser(), ref_dict=RefDict()):
+    def __init__(self, category_or_refdef_parser=CategoryOrRefDefParser(), ref_dict=None):
         """Initializer
 
         :param category_or_refdef_parser: Nested parser for single categories and reference definitions (optional)
         :param ref_dict: A reference dictionary object containing any named subexpressions
         being referred in the rules to be parsed (optional, usually created here as an empty dict)
         """
+        if ref_dict is None:
+            ref_dict = RefDict()
         self.ref_dict = ref_dict
         self.category_or_refdef_parser = category_or_refdef_parser
         self.category_or_refdef_parser.set_ref_dict(self.ref_dict)
