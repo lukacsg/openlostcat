@@ -98,7 +98,7 @@ White class items denote actors in a chain (initiated by the user figure) and in
 
 Grey classes are the passive objects passed as information during the actions represented by dashed arrows. Some classes have both (active or passive) roles at different points of processing.
 
-Blue-framed grey classes denote optional objects to be passed, and are not passed explicitly by default.
+Grey-framed grey classes denote optional objects to be passed, and are not passed explicitly by default.
 
 Some extra textual notes are added in the usual UML style.
 
