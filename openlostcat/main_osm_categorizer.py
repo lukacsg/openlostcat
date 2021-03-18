@@ -8,13 +8,15 @@ class MainOsmCategorizer:
 
     """
 
-    def __init__(self, category_catalog_source, debug=False, category_catalog_parser=CategoryCatalogParser()):
+    def __init__(self, category_catalog_source, debug=False, category_catalog_parser=None):
         """Initializes the categorizer by setting up the category catalog
 
         :param category_catalog_source: a JSON structure as python dictionary or a file path string
         :param debug: Boolean, set to true for more detailed output
         :param category_catalog_parser: parse using the given parser
         """
+        if category_catalog_parser is None:
+            category_catalog_parser = CategoryCatalogParser()
         self.category_cat = category_catalog_parser.parse(category_catalog_source, debug=debug)
 
     def categorize(self, osm_json_dict):
