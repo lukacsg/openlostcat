@@ -123,11 +123,6 @@ Notes:
 * _RefDict_ is initialized as empty by default, but an external _RefDict_ can be passed as well to the parsers with pre-populated defaults (not currently utilized). 
 * Similar is true for parsers, as different parser implementations may be added in the future, depending on possible other source formats (such as XML, for instance).
 
-## Tests
-
-...
-
-
 ## Future Developments
 
 Further types of operations may be introduced or optimizations for processing large amounts of location data (tag bundle sets) such as caching or subexpression rewriting are the obvious future directions for development, as well as adding utilities or further example scenarios and rule collections.
