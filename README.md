@@ -143,37 +143,25 @@ If no properties are given, `firstMatching` is assumed by default.
 ## Simple Category Rule Features by Example
 
 
-### Simple Tag-Value Checking
+### Atomic Filter: Simple Tag-Value Checking
 
-Checks whether a key is present in the tag bundle and the value of the tag equals the desirable value. 
+Checks whether a key is present in a tag bundle and the value of the tag equals the desirable value.
 
-attributes: 
-
- - key: the name of the tag which has to be investigated
- - values: the possibly values of the tags
-
+For example, the following condition matches all locations where a public transport stop position is present in any of the tag bundles of queried nearby map objects:
 
 ```
-{
-    "public_transport": "stop_position"
-}
+{ "public_transport": "stop_position" }
 ```
 
-Values could be a single value or a list of single values.
+The tag value be a single value or a list of values in the form of a JSON array, as in the following example. It finds all locations where either a stop position or platform is found:
 
 ```
-{"public_transport": ["stop_position", "platform"] },
+{ "public_transport": ["stop_position", "platform"] }
 ```
-
-If null is presented in the list means that the key is not mandatory to be presented in the tags but it is than the values can be only in the values set.
-
-??? NULL ???
 
 ### Multiple Tag-Value Checking
 
-(and)
-
-subway:
+Multiple tag-value checking conditions (atomic filters) can be but together into a JSON object. In such cases, the condition matches if both of them is met for at least one of the tag bundles of the queried objects at a location (a.k.a. conjunctive, or _AND_ condition). The following condition evaluates to true for every location where a subway stop position is found (there must be a single object having both tags with the given values):
 
 ```
 {
@@ -181,34 +169,101 @@ subway:
     "subway": true
 }
 ```
+A similar rule example follows, which matches locations with at least one wheelchair-accessible (barrier-free) supermarket nearby:
+
+```
+{
+    "shop": "supermarket",
+    "wheelchair": true
+}
+```
+
+### Optional Tag-Value Checking
+
+If `null` is added to a tag value list, it means the tag key is not mandatory to be present among the tags, but if present then its value must be one of the other elements in the list.
+An obvious example is to find locations which are candidates for wheelchair-shopping (there is a supermarket with either explicit wheelchair-accessibility or no wheelchair information, i.e. no explicit negation of wheelchair accessibility):
+
+```
+{
+    "shop": "supermarket",
+    "wheelchair": [true, null]
+}
+```
 
 ### Alternative Tag-Value Checking
 
-(or)
+Multiple key-value matching conditions can be combined as alternatives (a.k.a. disjunctive or _OR_ conditions), using standalone JSON arrays. The following example evaluates to true for a location if one of the queried nearby map objects have either one of the listed tag-values (either light-rail-, or subway-, or train-tagged): 
 
+
+```
 [
-                    {"light_rail": true},
-                    {"subway": true},
-                    {"train": true}
-                ]
-                
-combined with other :
+    { "light_rail": true },
+    { "subway": true },
+    { "train": true }
+]
+```
 
-                "pt_primary_accessible": {
-                "public_transport": "stop_position",
-                "__OR_primary_clause": [
-                    {"light_rail": true},
-                    {"subway": true},
-                    {"train": true}
-                ]
-            }
+In order to get meaningful conditions, the conjunctive and disjunctive conditions can be combined with each other, such as in the following example, where a stop position is looked for, with either one of the specified transport modes:
+
+```
+[
+    { "public_transport": "stop_position", "light_rail": true },
+    { "public_transport": "stop_position", "subway": true },
+    { "public_transport": "stop_position", "train": true }
+]
+```
+The above condition is equivalent with the following, where the special key `__OR` introduces the alternative (sub)conditions:
+
+```
+{                
+    "public_transport": "stop_position",
+    "__OR": [
+        {"light_rail": true},
+        {"subway": true},
+        {"train": true}
+    ]
+}
+```
+
+Note: the keyword "__OR" can be enhanced with an arbitrary, distinctive index or name of the (sub)conditions, especially if there are multiple of them in one level, such as in the following example. Here, a nearby map object matching both OR-conditions must be found in order for the location to meet the combined condition:
+
+```
+{
+    "__OR_1": [ 
+        {"public_transport": "stop_position"},
+        {"railway": "platform"},
+    ],
+    "__OR_2": [
+        {"light_rail": true},
+        {"subway": true},
+        {"train": true}
+    ]
+}
+```
+
+Note: there is also a keyword "__AND", in a similar fashion. It is mainly for language completeness, as it is usually not necessary to be used.
 
 ### Default (Fallback) Category
 
-if firstMatch : 
+The default categorization strategy is `firstMatch`, which means the rules of category definitions are evaluated for a location in the order of appearance in the JSON category catalog, and the first matching category is assigned, without further evaluation. If no category is matched, OpenLostCat returns the category index -1. By adding a default fallback category with a simple _bool constant_ rule, this can be substituted with a named category for locations not matching any of the other categories. 
 
-"pt_nonaccessible": true
+The following example defines two categories for public transport accessibility and non-accessibility. 
 
+```
+     "categoryRules":[
+        {
+            "pt_accessible": [
+                {"public_transport": ["stop_position", "platform"] },
+                {"amenity": "ferry_terminal"}
+            ]
+        },
+        {
+            "pt_nonaccessible": true
+        }
+     ]
+```
+
+Note: For this to be evaluated correctly, the  `evaluationStrategy` must be set to `firstMatching` in the `properties` of the category catalog, or left out, as it is the default.
 
 ### Negative Condition
 
