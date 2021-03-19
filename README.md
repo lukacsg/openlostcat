@@ -181,12 +181,33 @@ A similar rule example follows, which matches locations with at least one wheelc
 ### Optional Tag-Value Checking
 
 If `null` is added to a tag value list, it means the tag key is not mandatory to be present among the tags, but if present then its value must be one of the other elements in the list.
-An obvious example is to find locations which are candidates for wheelchair-shopping (there is a supermarket with either explicit wheelchair-accessibility or no wheelchair information, i.e. no explicit negation of wheelchair accessibility):
+An obvious example is to find locations which are candidates for wheelchair-shopping (there is a supermarket with either explicit wheelchair-accessibility or limited accessibility, or no wheelchair information, i.e. no explicit negation of wheelchair accessibility):
 
 ```
 {
     "shop": "supermarket",
-    "wheelchair": [true, null]
+    "wheelchair": [true, "limited", null]
+}
+```
+
+### Negative Condition
+
+An explicit negation may be added to the positive key-value conditions, stating a location matches only if there is at least one nearby object matching the listed positive condition(s) and not matching the condition(s) written inside the negated part at the same time. The following example matches all locations where a supermarket is found without an explicit statement of wheelchair inaccessibility (this is in fact, equivalent with the above example, if there are no more possible values of _wheelchair_ than listed above and here): 
+
+```
+{
+    "shop": "supermarket",
+    "__NOT": { "wheelchair": false }
+}
+```
+
+Note: the keyword `__NOT` can be enhanced with an arbitrary, distinctive index or name of its (sub)condition, especially if there are multiple not-conditions in one level. This is because a JSON object must have distinct keys. ...
+
+```
+{
+    "shop": "supermarket",
+    "__NOT_inaccessible": { "wheelchair": false },
+    "__NOT_...": { "...": ... }
 }
 ```
 
@@ -225,7 +246,7 @@ The above condition is equivalent with the following, where the special key `__O
 }
 ```
 
-Note: the keyword "__OR" can be enhanced with an arbitrary, distinctive index or name of the (sub)conditions, especially if there are multiple of them in one level, such as in the following example. Here, a nearby map object matching both OR-conditions must be found in order for the location to meet the combined condition:
+Note: the keyword `__OR` can be enhanced with an arbitrary, distinctive index or name of the (sub)conditions, especially if there are multiple of them in one level, such as in the following example. Here, a nearby map object matching both OR-conditions must be found in order for the location to meet the combined condition:
 
 ```
 {
@@ -241,7 +262,7 @@ Note: the keyword "__OR" can be enhanced with an arbitrary, distinctive index or
 }
 ```
 
-Note: there is also a keyword "__AND", in a similar fashion. It is mainly for language completeness, as it is usually not necessary to be used.
+Note: there is also a keyword `__AND`, in a similar fashion. It is mainly for language completeness, as it is usually not necessary to be used.
 
 ### Default (Fallback) Category
 
@@ -250,7 +271,7 @@ The default categorization strategy is `firstMatch`, which means the rules of ca
 The following example defines two categories for public transport accessibility and non-accessibility. 
 
 ```
-     "categoryRules":[
+     "categoryRules": [
         {
             "pt_accessible": [
                 {"public_transport": ["stop_position", "platform"] },
