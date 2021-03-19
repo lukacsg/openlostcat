@@ -76,11 +76,39 @@ based on logical rules defined in JSON for tags of OpenStreetMap objects located
 ...
 
 ### Requirements, Environment
+
+... python >=3.6 
+
+https://pypi.org/project/immutabledict/
+
+
+
+### Your First OpenLostCat Run
+
+bp_hotels = pd.DataFrame([[nwr['id'], 
+                           nwr['lat'], nwr['lon'], 
+                           nwr['tags'].get('name', 'NoName'),  
+                           nwr['tags']] for nwr in budapest_hotels['elements']], 
+                         columns = ['id', 'lat', 'lng', 'name', 'tags'])
+                         
+osm = bp_hotels[["lat", "lng"]].apply(lambda x: ask_osm_around_point_df(x, distance = 300), axis = 1)
+bp_hotels["osm"] = osm
+
+categorizer = MainOsmCategorizer('rules/publictransport_rules.json') - instead: direct rules
+
+print(categorizer.get_categories_enumerated_key_map())
+print(categorizer)
+
+1st: only one direct coordinate...
+
+bp_hotels["pt_cat"] = [i[0] for i in bp_hotels.osm.map(categorizer.categorize)]
+
+
 ...
 
 ### Demo
 ...
-
+see notebook
 
 ## General Usage
 
@@ -93,6 +121,10 @@ The file _osmqueryutils/ask\_osm.py_ contains OpenStreetMap-specific query strin
 After querying the OpenStreetMap objects around the locations, the _categorize(...)_ method of _MainOsmCategorizer_ must be called for each location separately to assign location category labels based on the parsed rules. 
 
 The returning data is either a tuple (for single-category-matching) or a list of tuples containing the index of the category (in the order of appearance in the rule collection file), the name of the category and, optionally, debug information. If no category matches, the returned index is -1, the name is Null and the debug info remains empty.
+
+```
+
+```
 
 ## Category Catalog (Rule Collection) Format
 
@@ -159,6 +191,18 @@ The tag value be a single value or a list of values in the form of a JSON array,
 { "public_transport": ["stop_position", "platform"] }
 ```
 
+### Value Types and Conversion
+
+...
+
+strings by default... other json types are translated to string
+
+integer-> string
+
+bool-> yes/no
+
+remark on null value, see later...
+
 ### Multiple Tag-Value Checking
 
 Multiple tag-value checking conditions (atomic filters) can be but together into a JSON object. In such cases, the condition matches if both of them is met for at least one of the tag bundles of the queried objects at a location (a.k.a. conjunctive, or _AND_ condition). The following condition evaluates to true for every location where a subway stop position is found (there must be a single object having both tags with the given values):
@@ -197,17 +241,39 @@ An explicit negation may be added to the positive key-value conditions, stating 
 ```
 {
     "shop": "supermarket",
-    "__NOT": { "wheelchair": false }
+    "__NOT_": { "wheelchair": false }
 }
 ```
 
-Note: the keyword `__NOT` can be enhanced with an arbitrary, distinctive index or name of its (sub)condition, especially if there are multiple not-conditions in one level. This is because a JSON object must have distinct keys. ...
+Note: the keyword `__NOT_` can be enhanced with an arbitrary, distinctive index or name of its (sub)condition, especially if there are multiple not-conditions in one level. This is because a JSON object must have distinct keys. ...
 
 ```
 {
     "shop": "supermarket",
     "__NOT_inaccessible": { "wheelchair": false },
     "__NOT_...": { "...": ... }
+}
+```
+
+### Checking the Existence or the Absence of a Tag
+
+.....
+
+
+tag must not exist:
+
+```
+{
+    "public_transport": true,
+    "subway": null
+}
+```
+
+tag must exists without any prescribed value:
+
+```
+{
+    "__NOT_": { "public_transport": null }
 }
 ```
 
@@ -238,7 +304,7 @@ The above condition is equivalent with the following, where the special key `__O
 ```
 {                
     "public_transport": "stop_position",
-    "__OR": [
+    "__OR_": [
         {"light_rail": true},
         {"subway": true},
         {"train": true}
@@ -246,7 +312,7 @@ The above condition is equivalent with the following, where the special key `__O
 }
 ```
 
-Note: the keyword `__OR` can be enhanced with an arbitrary, distinctive index or name of the (sub)conditions, especially if there are multiple of them in one level, such as in the following example. Here, a nearby map object matching both OR-conditions must be found in order for the location to meet the combined condition:
+Note: the keyword `__OR_` can be enhanced with an arbitrary, distinctive index or name of the (sub)conditions, especially if there are multiple of them in one level, such as in the following example. Here, a nearby map object matching both OR-conditions must be found in order for the location to meet the combined condition:
 
 ```
 {
@@ -262,7 +328,11 @@ Note: the keyword `__OR` can be enhanced with an arbitrary, distinctive index or
 }
 ```
 
-Note: there is also a keyword `__AND`, in a similar fashion. It is mainly for language completeness, as it is usually not necessary to be used.
+Note: there is also a keyword `__AND_`, in a similar fashion. It is mainly for language completeness, as it is usually not necessary to be used.
+
+## Reusing Subexpressions by References
+
+... # 
 
 ### Default (Fallback) Category
 
@@ -285,10 +355,6 @@ The following example defines two categories for public transport accessibility 
 ```
 
 Note: For this to be evaluated correctly, the  `evaluationStrategy` must be set to `firstMatching` in the `properties` of the category catalog, or left out, as it is the default.
-
-### Negative Condition
-
-(not)
 
 ### Implication Condition
 
@@ -320,8 +386,13 @@ It returns with the filtered set.
 ...
 
 
+### Expressive Power and Algebraic Equivalences
 
-## Reusing Subexpressions by References
+...
+
+... - same category name is possible ...: filter-yes, filter-no, default-yes
+
+### Reusing Subexpressions by References - two-level
 
 ... wheelchair... , mix...
 
@@ -343,14 +414,14 @@ StandaloneBoolRule ::= bool | BoolAndObj | BoolOrObj | BoolRefName | StandaloneF
 BoolAndObj ::= { KeyValueBoolRule, ... }
 BoolOrObj ::= [ StandaloneBoolRule, ... ]
 KeyValueBoolRule ::= 
-    "__AND_.*"  : BoolAndObj | 
-    "__OR_.*"   : BoolOrObj | 
-    "__IMPL_.*" : BoolOrObj | 
-    "__NOT_.*"  : StandaloneBoolRule | 
-    "__ALL_.*"  : StandaloneFilterRule | 
-    "__ANY_.*"  : StandaloneFilterRule | 
-    "__REF_.*"  : BoolRefName |
-    "__BOOLCONST_.*"  : bool |
+    "__AND_.*"   : BoolAndObj | 
+    "__OR_.*"    : BoolOrObj | 
+    "__IMPL_.*"  : BoolOrObj | 
+    "__NOT_.*"   : StandaloneBoolRule | 
+    "__ALL_.*"   : StandaloneFilterRule | 
+    "__ANY_.*"   : StandaloneFilterRule | 
+    "__REF_.*"   : BoolRefName |
+    "__CONST_.*" : bool |
     KeyValueFilterRule
 
 StandaloneFilterRule ::= bool | FilterAndObj | FilterOrObj | FilterRefName
@@ -362,7 +433,7 @@ KeyValueFilterRule ::=
     "__IMPL_.*" : FilterOrObj | 
     "__NOT_.*"  : StandaloneFilterRule | 
     "__REF_.*"  : FilterRefName |
-    "__FILTERCONST_.*": bool |
+    "__CONST_.*": bool |
     AtomicFilter
 
 AtomicFilter ::= "[^_].*" : ValueOrList
