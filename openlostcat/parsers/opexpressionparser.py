@@ -13,12 +13,14 @@ class OpExpressionParser:
 
     """
 
-    def __init__(self, ref_dict=RefDict()):
+    def __init__(self, ref_dict=None):
         """ Initializer
 
         :param ref_dict: A reference dictionary object containing any named subexpressions
         being referred in the rules to be parsed
         """
+        if ref_dict is None:
+            ref_dict = RefDict()
         self.ref_dict = ref_dict
 
     def get_ref_dict(self):

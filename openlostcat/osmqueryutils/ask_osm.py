@@ -19,6 +19,7 @@ query_teplate = """
 out body;
 """
 
+
 def ask_osm(query, url=overpass_url):
     """Queries the Overpass API with a query string
 

@@ -20,13 +20,15 @@ class CategoryCatalog:
         if 'evaluationStrategy' in prop:
             self.evaluationStrategy = prop['evaluationStrategy']
 
-    def __init__(self, category_list, properties={}, debug=False):
+    def __init__(self, category_list, properties=None, debug=False):
         """Initializes the catalog
 
         :param category_list: Category objects
         :param properties: directives for the category evaluation, see update_properties
         :param debug: Boolean for detailed output
         """
+        if properties is None:
+            properties = {}
         self.debug = debug
         self.update_properties(properties)
         self.categories = category_list

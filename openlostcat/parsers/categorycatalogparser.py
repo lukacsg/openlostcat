@@ -24,7 +24,7 @@ class CategoryCatalogParser:
     """Top-level JSON key for the catalog properties
     """
 
-    def __init__(self, category_or_refdef_parser=CategoryOrRefDefParser(), ref_dict=None):
+    def __init__(self, category_or_refdef_parser=None, ref_dict=None):
         """Initializer
 
         :param category_or_refdef_parser: Nested parser for single categories and reference definitions (optional)
@@ -34,6 +34,8 @@ class CategoryCatalogParser:
         if ref_dict is None:
             ref_dict = RefDict()
         self.ref_dict = ref_dict
+        if category_or_refdef_parser is None:
+            category_or_refdef_parser = CategoryOrRefDefParser()
         self.category_or_refdef_parser = category_or_refdef_parser
         self.category_or_refdef_parser.set_ref_dict(self.ref_dict)
 

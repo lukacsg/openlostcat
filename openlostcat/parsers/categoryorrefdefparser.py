@@ -12,15 +12,19 @@ class CategoryOrRefDefParser:
 
     """
 
-    def __init__(self, op_exp_parser=OpExpressionParser(), ref_dict=RefDict()):
+    def __init__(self, op_exp_parser=None, ref_dict=None):
         """Initializer
 
         :param op_exp_parser: Nested parser for operator (sub)expressions (optional)
         :param ref_dict: A reference dictionary object containing any named subexpressions
         being referred in the rules to be parsed - passed further to op_exp_parser
         """
-        self.op_exp_parser = op_exp_parser
+        if ref_dict is None:
+            ref_dict = RefDict()
         self.op_exp_parser.set_ref_dict(ref_dict)
+        if op_exp_parser is None:
+            op_exp_parser = OpExpressionParser()
+        self.op_exp_parser = op_exp_parser
 
     def get_ref_dict(self):
         return self.op_exp_parser.get_ref_dict()
