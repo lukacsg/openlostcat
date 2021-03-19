@@ -1,5 +1,5 @@
 """
-Utils what for
+General utility functions
 """
 
 import textwrap
