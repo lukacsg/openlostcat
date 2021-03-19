@@ -1,5 +1,5 @@
 import unittest
-from openlostcat.operators.bool_operators import BoolAND, BoolOR, BoolConst
+from openlostcat.operators.bool_operators import BoolAND, BoolOR
 from openlostcat.utils import to_tag_bundle_set
 from tests.booloperators import test_operators_list
 
