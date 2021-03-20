@@ -73,42 +73,61 @@ based on logical rules defined in JSON for tags of OpenStreetMap objects located
 
 ## Getting started
 
-...
-
 ### Requirements, Environment
 
-... python >=3.6 
+OpenLostCat requires `python >= 3.6`, due to the following issue:
 
-https://pypi.org/project/immutabledict/
+[https://pypi.org/project/immutabledict/](https://pypi.org/project/immutabledict/)
 
+You may either use a _jupyter notebook_ or standalone python as well.
 
+Utilizing _pandas_ makes using OpenLostCat simpler and more effective, but it is not necessary.
+
+After cloning the OpenLostCat github repository, you may install it in your environment from the repository root folder by running the command `pip install .` .
 
 ### Your First OpenLostCat Run
 
-bp_hotels = pd.DataFrame([[nwr['id'], 
-                           nwr['lat'], nwr['lon'], 
-                           nwr['tags'].get('name', 'NoName'),  
-                           nwr['tags']] for nwr in budapest_hotels['elements']], 
-                         columns = ['id', 'lat', 'lng', 'name', 'tags'])
+Use the following python commands to try out OpenLostCat for a simple location categorization, 
+where two geolocated points (a central railway station and a picnic area outside the city) are categorized 
+according to their public transport accessibility:
+
+```
+from openlostcat.main_osm_categorizer import MainOsmCategorizer
+from openlostcat.osmqueryutils.ask_osm import ask_osm, ask_osm_around_point
+import json
                          
-osm = bp_hotels[["lat", "lng"]].apply(lambda x: ask_osm_around_point_df(x, distance = 300), axis = 1)
-bp_hotels["osm"] = osm
+# Query the OpenStreetMap objects in the proximity of the two points:  
+osm_neighborhood_railway_station = ask_osm_around_point(47.5001, 19.0247, distance = 300)
+osm_neighborhood_picnic_area     = ask_osm_around_point(47.4945, 18.9464, distance = 300)
 
-categorizer = MainOsmCategorizer('rules/publictransport_rules.json') - instead: direct rules
+# Create the categorizer by parsing JSON rules:  
+categorizer = MainOsmCategorizer(json.loads('{ "type": "CategoryRuleCollection", "categoryRules": [ { "pt_accessible": { "public_transport": "stop_position" } }, { "pt_inaccessible": true } ] }'))
 
+# Print the list of categories:  
 print(categorizer.get_categories_enumerated_key_map())
+
+# Do the categorization of the railway station and print its category:  
+category_railway_station = categorizer.categorize(osm_neighborhood_railway_station)
+print(category_railway_station)
+
+# Do the categorization of the railway station and print its category:  
+category_picnic_area = categorizer.categorize(osm_neighborhood_picnic_area)
+print(category_picnic_area)
+
+# Print the categorizer with the syntax tree of the parsed categorizing rules:  
 print(categorizer)
 
-1st: only one direct coordinate...
+```
+If you have reached this point successfully: Congrats! 
+You are ready to use OpenLostCat and do some more interesting stuff!
+Keep on reading...
 
-bp_hotels["pt_cat"] = [i[0] for i in bp_hotels.osm.map(categorizer.categorize)]
+### Demo and Examples
 
+See and run our jupyter notebook [examples/Budapest\_hotels\_categorization.ipynb](examples/Budapest_hotels_categorization.ipynb) 
+using example rulesets in the directory [examples/rules/](examples/rules) for trying out different scenarios and features OpenLostCat provides.
+Detailed explanations of features and possibilities can be found below.
 
-...
-
-### Demo
-...
-see notebook
 
 ## General Usage
 
@@ -122,9 +141,6 @@ After querying the OpenStreetMap objects around the locations, the _categorize(.
 
 The returning data is either a tuple (for single-category-matching) or a list of tuples containing the index of the category (in the order of appearance in the rule collection file), the name of the category and, optionally, debug information. If no category matches, the returned index is -1, the name is Null and the debug info remains empty.
 
-```
-
-```
 
 ## Category Catalog (Rule Collection) Format
 
@@ -349,7 +365,7 @@ The following example defines two categories for public transport accessibility 
             ]
         },
         {
-            "pt_nonaccessible": true
+            "pt_inaccessible": true
         }
      ]
 ```
