@@ -207,17 +207,29 @@ The tag value be a single value or a list of values in the form of a JSON array,
 { "public_transport": ["stop_position", "platform"] }
 ```
 
+Such conditions can be directly used to define a category, as in the following example, or used to compose more complex conditions (see later).
+
+```
+"categoryRules": [
+    {
+        "pt_accessible": { "public_transport": ["stop_position", "platform"] }
+    }
+]
+```
+
 ### Value Types and Conversion
 
-...
+OpenStreetMap tags are strings. OpenLostCat can consume other JSON data types and it converts them to strings in the following way:
 
-strings by default... other json types are translated to string
+* numers are translated to strings in the conventional way,
+* booleans are translated to strings, in the OpenStreetMap style: true to "yes" and false to "no",
+* null values are treated in a specific way: if a null value is added to the list of accepted values for a tag then the absence of the tag counts as a match (optionality). See more details and examples in further sections.
 
-integer-> string
+For instance, the following example condition matches any location where a map object with OpenStreetMap tag `subway=yes` is found:
 
-bool-> yes/no
-
-remark on null value, see later...
+```
+{ "subway": true }
+```
 
 ### Multiple Tag-Value Checking
 
@@ -261,22 +273,23 @@ An explicit negation may be added to the positive key-value conditions, stating 
 }
 ```
 
-Note: the keyword `__NOT_` can be enhanced with an arbitrary, distinctive index or name of its (sub)condition, especially if there are multiple not-conditions in one level. This is because a JSON object must have distinct keys. ...
+Note: the keyword `__NOT_` can be enhanced with an arbitrary, distinctive index or name of its (sub)condition, especially if there are multiple not-conditions in one level. This is because a JSON object must have distinct keys. 
+
+In the following example, a supermarket must be found with no explicit wheelchair inaccessibility and no required membership for shopping:
 
 ```
 {
     "shop": "supermarket",
     "__NOT_inaccessible": { "wheelchair": false },
-    "__NOT_...": { "...": ... }
+    "__NOT_membership": { "membership": true }
 }
 ```
 
-### Checking the Existence or the Absence of a Tag
+### Checking the Existence or Absence of a Tag
 
-.....
+Using a _null_ JSON value as a tag value in OpenLostCat conditions means a no-value, that is, the tag named should be missing (or, if not missing, must have the other values listed).
 
-
-tag must not exist:
+In the following example, matching means a map object must be present in the proximity of the location in question with _public\_transport=yes_ having no subway tag at all:
 
 ```
 {
@@ -285,7 +298,18 @@ tag must not exist:
 }
 ```
 
-tag must exists without any prescribed value:
+Here, the _subway_ tag must either have the value of "no" or is missing (by at least one map object nearby):
+
+```
+{
+    "public_transport": true,
+    "subway": [false, null]
+}
+```
+
+If we want to formulate a condition for the existence of a tag without any prescribed value(s), we should negate the null-condition.
+
+The following example matches wherever a map object is found nearby with a _public\_transport_ tag with any value:
 
 ```
 {
@@ -334,7 +358,7 @@ Note: the keyword `__OR_` can be enhanced with an arbitrary, distinctive index o
 {
     "__OR_1": [ 
         {"public_transport": "stop_position"},
-        {"railway": "platform"},
+        {"railway": "platform"}
     ],
     "__OR_2": [
         {"light_rail": true},
@@ -348,7 +372,39 @@ Note: there is also a keyword `__AND_`, in a similar fashion. It is mainly for l
 
 ## Reusing Subexpressions by References
 
-... # 
+If a name being defined in the ruleset starts with the `#˙ character, it means a reference instead of a category definition. It does not generate a category but instead, a (sub)expression being named for reuse in possibly multiple rules.
+
+The next example shows a definition of two references defined for different types of public transport accessibility, being combined into a category with an or-condition:
+
+```
+"categoryRules": [
+    {
+        "#pt_platform_close": [
+            {"public_transport": ["stop_position", "platform"] },
+            {"railway": "platform"}
+        ]
+    },
+    {
+        "#pt_ferry_close": {"amenity": "ferry_terminal"}
+    },
+    {
+        "pt_accessible": [ #pt_platform_close, #pt_ferry_close ]
+    }
+```
+
+We can also use a reference in a JSON object-context, using the keyword `__REF_`, as follows, where we use one of the references above in defining a category with an and-condition:
+
+```
+    {
+        "subway_accessible": {
+            "__REF_": "#pt_platform_close",
+            "subway": true
+        }
+    }
+
+```
+
+Note: Some (sub)expressions must be preceded with two hashmarks `##` to be defined as references, depending on their intended logical level of use in category definitions (also influenced by the type of operators they contain). See more details later about this.
 
 ### Default (Fallback) Category
 
@@ -357,60 +413,439 @@ The default categorization strategy is `firstMatch`, which means the rules of ca
 The following example defines two categories for public transport accessibility and non-accessibility. 
 
 ```
-     "categoryRules": [
-        {
-            "pt_accessible": [
-                {"public_transport": ["stop_position", "platform"] },
-                {"amenity": "ferry_terminal"}
-            ]
-        },
-        {
-            "pt_inaccessible": true
-        }
-     ]
+"categoryRules": [
+    {
+        "pt_accessible": [
+            {"public_transport": ["stop_position", "platform"] },
+            {"amenity": "ferry_terminal"}
+        ]
+    },
+    {
+        "pt_inaccessible": true
+    }
+]
 ```
 
 Note: For this to be evaluated correctly, the  `evaluationStrategy` must be set to `firstMatching` in the `properties` of the category catalog, or left out, as it is the default.
 
 ### Implication Condition
 
-(impl with all quantifier)
+Logical implication is a form of statement saying whenever a given condition is true then another condition must also be true. 
+OpenLostCat can treat such statements as categorization conditions with the keyword `__IMPL_`, meaning that a location matches the category defined by the implication 
+if it is valid for _all_ queried OpenStretMap elements in its proximity.
 
+If we want to define, for example, that each public transport stop or platform nearby a location is wheelchair-accessible, we may use the following condition:
+
+```
+{ 
+    "__IMPL_": [ 
+        {"public_transport": ["stop_position", "platform"] }, 
+        {"wheelchair": [true, "designated"]} 
+    ]
+}
+```
+
+The implication may have multiple premises and a single conclusion. In such cases, wherever each of the premises match, the conclusion must also hold, in order for the location to be categorized as matching. The following example defines the same as above, with a restriction to subway stations, that is, the wheelchair-accessibility must only hold if the stop is a subway station:
+
+```
+{
+    "__IMPL_": [ 
+        {"public_transport": ["stop_position", "platform"] }, 
+        {"subway": true},
+        {"wheelchair": [true, "designated"]} 
+    ]
+}
+```
+
+Note, that the implication is an universal condition, that is, a category defined by a single implication will match only if _all_ queried map elements in its proximity matches the condition. 
+In the example above, it means each element having a _public\_transport_ tag with either a _stop\_position_ or _platform_ value must have a _wheelchair_ tag as well with the value _yes_ or _designated_.
 
 ### All-Condition (universal quantification)
-...
+
+Any condition can be turned into universal by using the universal quantification, denoted by the keyword `__ALL_`. 
+It naturally makes sense with negated conditions, as seen in the following example, where we define the condition of a location not having public transport accessibility, that is, for all queried map elements in its proximity, there is no public transport stop or platform tag. In other words, neither of the queried map elements is a public transport stop or platform object:
+
+```
+{
+    "__ALL_": {
+        "__NOT_": { "public_transport": ["stop_position", "platform"] }
+    }
+}
+```
+
+The last implication in the previous section is logically equivalent with the following condition, literally stating that each map object in the proximity must either not be a public transport stop or platform, or not being tagged with subway=yes, or be wheelchair-accessible, for the location to belong to the category defined by this rule:
+```
+{
+    "__ALL_": [
+         { "__NOT_": { "public_transport": ["stop_position", "platform"] },
+         { "__NOT_": { "subway": true },
+         { "wheelchair": [true, "designated"] }
+    ]
+}
+```
+
+Note that whenever a reference to a quantified (sub)expression is defined, its name must start with `##`. More explanation follows. 
 
 ### Any-Condition (existential quantification)
-...
 
+Similarly to the universal quantification introduced above, the existential quantifier "__ANY_" can be used in rules, stating explicitly that at least one map object in the proximity of the location must be found with the nested condition, in order the location to match the category defined by the rule.
 
+The following two rule examples are equivalent when they define a category without any other rules. In fact, the first one is a shorthand for the second one:
 
-## Complex Rule Cases and Language Background
+```
+{ "public_transport": "stop_position" }
+```
 
-### Filter semantics and set(/filter)-level operations 
+```
+{
+    "__ANY_": { "public_transport": "stop_position" }
+}
+```
 
-Basically operators works as filter. Every operator has an apply function which get a list of tags and produces a subset of this list.
-It returns with the filtered set.
-...
+An explicit existential quantification makes sense, for example, if we want a location to have multiple facitilites in its proximity, in order to be put into a certain category. The following example is a rule matching a location which has both a light-rail and a subway stop in its proximity:
 
-### Quantifier Wrapping 
+```
+{
+    "__ANY_lr": { "public_transport": ["stop_position", "platform"], "light_rail": true },
+    "__ANY_sw": { "public_transport": ["stop_position", "platform"], "subway": true }
+}
+```
 
-...
+It can be simplified with the reference `"#pt_stop": { "public_transport": ["stop_position", "platform"] }` having been defined:
 
-### Boolean semantics and category(/bool)-level operations 
+```
+{
+    "__ANY_lr": { "__REF_": "#pt_stop", "light_rail": true },
+    "__ANY_sw": { "__REF_": "#pt_stop", "subway": true }
+}
+```
 
-...
+### The Two-Level Nature of the Rule Language
 
+A simple condition is evaluated in principle for each queried map object in the proximity of a location being categorized, 
+and thus produces a true/false value for each single map object. These single values must eventually be aggregated into a single true/false value
+so that it can be decided whether the location (having a _set_ of map objects queried in its proximity) actually belongs to a particular category.
+This is always done by using quantifiers, either explicitly or implicitly.
+
+OpenLostCat applies quantifiers to each rule expression defining a category at some point. If the whole expression is explicitly quantified using `__ANY_` or `__ALL_`,
+then it is already complete. If not, OpenLostCat wraps the expression implicitly with a quantifier, whose type depends on the operators in the expression (explained below in a separate section).
+
+Therefore, each rule defining a category must be quantified, either explicitly or implicitly. This results in our language having two levels of (sub)expression:
+* _Item-level_ (a.k.a. _filter-level_) subexpressions are non-quantified expressions being evaluated on an input set of queried map objects in the proximity of the location one-by-one, 
+thus resulting a subset of their input set with the matching map objects (actually, the tag bundles of them).
+* _Category-level_ (a.k.a. _bool-level_) (sub/)expressions are (explicitly or implicitly) quantified expressions resulting a single boolean value. 
+  * _Quantifiers_ operate on item-level subexpressions and produce a single aggregated boolean value, 
+  * Other operations on the category level work with boolean inputs and produce boolean results.
+
+### Complex Rule Cases
+
+As we have seen in the section of any-conditions, logical operators can be used on the category-level as well, making it possible to combine quantified expressions for defining a category.
+All simple logical constructs (and, or, not, implication) can be used both on the item-level as filter conditions, or the (quantified) category-level as (simple) boolean conditions.
+
+For example, the following rule states a location belongs to the category being defined if all public transport facilities nearby are wheelchair-accessible, and there is at least one wheelchair-accessible supermarket nearby as well:
+
+```
+{
+    "__ALL_": {
+        "__IMPL_": [ 
+            {"public_transport": ["stop_position", "platform"] }, 
+            {"wheelchair": [true, "designated"]} 
+        ]
+    },
+    "__ANY_": {
+        "shop": "supermarket",
+        "wheelchair": [true, "designated"]
+    }
+}
+```
+
+Note that the implication part is an item(filter)-level subexpression, while the parts enclosed with the quantifiers ALL and ANY, as well as the whole expression are category(bool)-level (sub)expressions.
+
+### The Two Types of References
+
+As mentioned already, references are named subexpressions as shorthands for reusing them multiple times in the rules. Their definition looks similar as a category definition but their name starts with `#`. Names of some references start with `##`. This distinction has a meaning, and separates two types of references explicitly:
+
+* Non-quantified, item(filter)-level references start with a single `#`. They define a property being evaluated for potentially each single map object in the proximity of a location being categorized. 
+These references can be used inside quantified expressions, or can be used directly as category-level expressions in which case they will be implicitly wrapped by a quantifier.
+* Quantified, category(bool)-level references start with `##`. They define a property being evaluated once for the whole set of map objects in the proximity of a location being categorized.
+These references must either be explicitly quantified in their definition expression, or will be implicitly wrapped with a quantifier directly. They can be used as a standalone category definition or combined with category(bool)-level operators to define more complex category rules.
+
+For instance, the complex example above can alternatively be defined by references, where the wheelchair-accessibility (barrier-freeness) is defined as an item-level reference as being a property of single map objects, and the condition of the existence of a barrier-free supermarket on one hand, and the public transport facilities being each barrier-free on the other hand, are defined as category-level references:
+
+```
+"categoryRules": [
+    {
+        "#barrier-free": {"wheelchair": [true, "designated"]}
+    },
+    {
+        "##all-pt-bf": {
+            "__ALL_": {
+                "__IMPL_": [ 
+                    {"public_transport": ["stop_position", "platform"] }, 
+                    "#barrier-free" 
+                ]
+            }
+        }
+    },
+    {
+        "##any-sm-bf": {
+            "__ANY_": {
+                "shop": "supermarket",
+                "__REF_": "#barrier-free"
+            }
+        }
+    },
+    {
+        "barrier-free-shopping-hub-category": {
+            "__REF_1": "##all-pt-bf",
+            "__REF_2": "##any-sm-bf"
+        }
+    }
+]
+```
+
+Since the implication wraps with an ALL, and the conjunction of simple conditions wrap into an ANY, the above rules can be shortened by the following. Note this is because the reference prefix `##` enforces the expression to become category(bool)-level, and the referenced subexpression will be wrapped with a quantifier directly at the point of the reference. 
+
+```
+"categoryRules": [
+    {
+        "#barrier-free": {"wheelchair": [true, "designated"]}
+    },
+    {
+        "##all-pt-bf": {
+            "__IMPL_": [ 
+                {"public_transport": ["stop_position", "platform"] }, 
+                "#barrier-free" 
+            ]
+        }
+    },
+    {
+        "##any-sm-bf": {
+            "shop": "supermarket",
+            "__REF_": "#barrier-free"
+        }
+    },
+    {
+        "barrier-free-shopping-hub-category": {
+            "__REF_1": "##all-pt-bf",
+            "__REF_2": "##any-sm-bf"
+        }
+    }
+]
+```
+
+Note that in the latter example, the ##-named references could syntactically have been #-named references as well, but the meaning of the whole ruleset would have been different (and thus incorrect), due to the fact that the implicit quantifier wrapping will not be enforced at the point of the usage of the references, but only at the top-level of the whole expression.
+
+The defined references can be (re)used for creating other categories in a simple manner, such as, for example, being added to the array of `categoryRules`:
+
+```
+        "any-barrier-free-shopping-category": "##any-sm-bf",
+        "all-barrier-free-pt-category": "##all-pt-bf",
+        "either-any-bf-sm-or-all-bf-pt-category": [ "##any-sm-bf", "##all-pt-bf" ],
+        "any-barrier-free-facility-category": "#barrier-free"
+```
+
+Note that the last category is defined using an item(filter)-level reference expression, which is being wrapped by an existential quantifier. In other terms, the last category definition is a shorthand of the following one:
+```
+        "any-barrier-free-facility-category": { "__ANY_": "#barrier-free" }
+```
+
+### Quantifier Wrapping in Detail
+
+If a non-quantified (item-level, a.k.a. filter-) (sub)expression appears somewhere where a quantified (category-level, a.k.a. bool-) expression is required, OpenLostCat wraps the (sub)expression implicitly with a quantifier. In most cases the wrapper becomes an `__ANY_`, which means the default usual interpretation of non-quantified expressions is existential, that is, to find if there is at least one map object in the proximity of the location matching the expression as a rule. 
+
+Recall from the section of any-conditions the following examples as being equivalent, with the first one being a shorthand for the second one:
+
+```
+{ "public_transport": "stop_position" }
+```
+
+```
+{
+    "__ANY_": { "public_transport": "stop_position" }
+}
+```
+
+Any combinations of such conditions with _and_, _or_, or _not_ logical constructs will be wrapped by default with `__ANY_` when directly used as the definition of a category.
+
+However, for instance, in the case of the implication, the default wrapper quantifier is `__ALL_`. Therefore, the following two examples are equvalent, with the first one being a shorthand for the second one:
+
+```
+{ 
+    "__IMPL_": [ 
+        {"public_transport": ["stop_position", "platform"] }, 
+        {"wheelchair": [true, "designated"]} 
+    ]
+}
+```
+
+```
+{
+    "__ALL_": {
+        "__IMPL_": [ 
+            {"public_transport": ["stop_position", "platform"] }, 
+            {"wheelchair": [true, "designated"]} 
+        ]
+    }
+}
+```
+
+The and-combination of implication subexpressions will also result in universal quantification. In other words, defining two or more implication rules for a single category will be interpreted as each of them must hold for all map objects in the proximity of the location, to be in the defined category. It is, in fact, follows the common-sense interpretation of combining implication rules. 
+
+The following examples are therefore equivalent, with the first one being a shorthand of the second one, meaning a place belongs to the category being defined if _all_ nearby public transport services and supermarkets are wheelchair-accessible:
+
+```
+{ 
+    "__IMPL_pt_wa": [ 
+        {"public_transport": ["stop_position", "platform"] }, 
+        {"wheelchair": [true, "designated"]} 
+    ],
+    "__IMPL_sm_wa": [ 
+        {"supermarket": true }, 
+        {"wheelchair": [true, "designated"]} 
+    ]
+}
+```
+
+```
+{
+    "__ALL_": {
+        "__IMPL_pt_wa": [ 
+            {"public_transport": ["stop_position", "platform"] }, 
+            {"wheelchair": [true, "designated"]} 
+        ],
+       "__IMPL_sm_wa": [ 
+            {"supermarket": true }, 
+            {"wheelchair": [true, "designated"]} 
+        ]
+     }
+}
+```
+
+Quantifier wrapping is well-defined for any combination of different subexpressions using the following rules:
+
+If a set(filter)-level (sub)expression becomes a top-level (sub)expression defining a category, 
+or becomes an operand of a multi-ary logical operator having category(bool)-level operands (subexpressions),
+the set(filter)-level (sub)expression will be wrapped by a quantifier to become a category(bool)-level (sub)expression.
+
+Each set(filter)-level operator type has its default wrapper quantifier for the cases 
+wherever a category(bool)-level (sub)expression is expected and it must be wrapped to become such:
+* wrapper quantifier of an atomic (or constant boolean) filter will default to ANY
+* wrapper quantifier of implication will default to ALL
+* wrapper quantifier of a 'not' or #ref is inherited from its subexpression (operand)
+* wrapper quantifier of 'and' will default to ALL if each of its subexpressions (operands) defaults to ALL, otherwise it will default to ANY
+* wrapper quantifier of 'or' will default to ALL if at least one subexpressions (operands) defaults to ALL, otherwise it will default to ANY.
+
+For complex cases, it is however advised to use explicit quantifiers as it is easier to be followed by human eyes.
 
 ### Expressive Power and Algebraic Equivalences
 
-...
+The rule language of OpenLostCat is a univariate first-order logic, somewhat similar to tuple calculus. It is relatively simple with an expressive power suited to usual scenarios as listed earlier in this document.
 
-... - same category name is possible ...: filter-yes, filter-no, default-yes
+A category assessment is based on exact values of OpenStreetMap tags, or the presence or absence of tags, logical combinations of such item-based conditions - on the item/filter level -, the existence of an element in the set of nearby map objects (in a given proximity of the location) with such properties, or a universal condition regarding such properties - for instance, all elements in the set of nearby objects must have a specific tag, value or constellation -, and finally, logical combinations of such existential or universal conditions on the category level. 
 
-### Reusing Subexpressions by References - two-level
+As the general logical equivalences hold (such as the algebaic commutativity, associativity, distributivity etc. of logical operators), the same meaning can be expressed usually in different forms.
 
-... wheelchair... , mix...
+A classical equivalence is the exchangeability of quantifiers with negation, which swaps the quantifiers, such as in the following example, which defines a category where no primary or secondary road is present. The two rules are logically equivalent:
+
+```
+"__ALL_" : {
+    "__NOT_" : {"highway": ["primary", "secondary"]}
+}
+```
+
+```
+"__NOT_" : {
+    "__ANY_" : {"highway": ["primary", "secondary"]}
+}
+```
+
+Note that the quantifier ANY cannot be omitted from the second variant, because in that case, the implicit quantification would have been done on the top level of the expression, meaning there is a map object nearby not having a highway tag with any of the listed values. This would almost always evaluate to true, wherever there is any map object not tagged with highway in the proximity of the location. 
+
+Equivalences present on the level of multiple categories as well.
+
+For example, using first-matching category evaluation, the following two examples are equvalent definitions of a category catalog (if the allowed values for _wheelchair_ are the listed ones in the second variant):
+
+```
+"categoryRules": [
+    {
+        "#wheelchair_accessible": {"wheelchair": [true, "limited", "designated"]}
+    }
+    {
+        "wheelchair_shopping": { "shop": "supermarket", "#wheelchair_accessible" }
+    },
+    {
+        "wheelchair_shopping_paradise": {
+            "__IMPL_": [{"shop": "supermarket"}, "#wheelchair_accessible"]
+         }
+    },
+    {
+        "no_wheelchair_shopping": true
+    }
+]
+```
+
+```
+"categoryRules": [
+    {
+        "no_wheelchair_shopping": {
+            "__IMPL_": [{"shop": "supermarket"}, {"wheelchair": [false, null]}]
+        }
+    },
+    {
+        "wheelchair_shopping_paradise": {
+            "__IMPL_": [{"shop": "supermarket"}, {"wheelchair": [true, "limited", "designated"]}]
+         }
+    },
+    {
+        "wheelchair_shopping": true
+    }
+]
+```
+
+### Repeating Category Names
+
+It is possible to define a category name multiple times. Since OpenLostCat indexes the categories, such a definition will yield a category assignment with a different index but the same name. This can be utilized in special cases, when, for example, the user treats these as a single category by name, but wants to know which rule caused the location being categorized as such.
+
+The following rules assign the same category name to locations with general public transport stops and stations, and locations having only ferry connections, but the latter gets a different numeric index for its category:
+
+```
+"categoryRules": [
+    {
+        "pt_accessible": {"public_transport": ["stop_position", "platform"] }
+    },
+    {
+        "pt_accessible": {"amenity": "ferry_terminal"}
+    },
+    {
+        "pt_inaccessible": true
+    }
+]
+```
+
+Another example is when a category is defined using a positive-negative-positive scheme, such as in the following example, where the third category definition rule (after the reference definition) yields the same category name as the first one, but gets a different numeric index for the category (indicating here the locations with bus stops being only tagged using legacy tagging scheme):
+
+```
+"categoryRules": [
+    {
+        "#pt_stop": { "public_transport": ["stop_position", "platform"] }
+    },
+    {
+        "bus_accessible": { "bus": true, "__REF_": "#pt_stop"}
+    },
+    {
+        "pt_accessible": "#pt_stop"
+    },
+    {
+        "bus_accessible": {"highway": "bus_stop"}
+    },
+    {
+        "pt_inaccessible": true
+    }
+]
+```
+
+Both of the above examples are meant being evaluated by the (default) first matching strategy. 
 
 ## Rule Syntax Reference
 

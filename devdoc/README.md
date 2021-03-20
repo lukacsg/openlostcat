@@ -34,9 +34,7 @@ _OpExpressionParser_ is called recursively for each JSON element or structural c
 
 ### Rule Language and Operator Hierarchies
 
-Our rule language is a univariate first-order logic, somewhat similar to tuple calculus. It's relatively simple with an expressive power suited to our usual scenario. 
-
-A category assessment is based on exact values of tags, or the presence or absence of tags, logical combinations of such item-based conditions - on the item/filter level -, the existence of an element in the set with such properties, or a universal condition regarding such properties - for instance, all elements in the set must have a specific tag, value or constellation -, and finally, logical combinations of such existential or universal conditions on the category level. 
+See the general description of the rule language with features in the user documentation.
 
 The class diagram of operators is as follows:
 ![class diagram of operators](classdiagram_operators.png)
@@ -63,18 +61,7 @@ The top-level expression of a _Category_ must always be a category(/bool)-level 
 ### Quantifier Wrapping 
 
 The above general scheme applies wherever an explicit quantification is used and the structure of the expression is clear in terms of no operator having operands of different levels. 
-To make the syntax simpler for usual, common-sense cases, quantifiers are generated implicitly wherever they are needed, based on the following rules:
-
-If a set(filter)-level operator(subexpression) becomes a top-level operator(subexpression) for a category, 
-or becomes an operand of a multi-ary operator having bool-level operands,
-the filter-level operator will be wrapped into a bool operator(subexpression) by a quantifier.
-
-Each set(filter)-level operator type has its default wrapper quantifier for the cases wherever a category(bool)-level operator(subexpression) is expected and it must be converted (leveled-up) to it:
-* wrapper quantifier of an atomic or const filter will default to ANY
-* wrapper quantifier of implication will default to ALL
-* wrapper quantifier of a 'not' or #ref is inherited from its subexpression
-* wrapper quantifier of 'and' will default to ALL if each subexpression defaults to ALL, otherwise it will default to ANY
-* wrapper quantifier of 'or' will default to ALL if at least one subexpression defaults to ALL, otherwise it will default to ANY.
+To make the syntax simpler for usual, common-sense cases, quantifiers are generated implicitly wherever they are needed, based on the quantifier wrapping rules described in the user documentation.
 
 ### Operator Simplification
 
