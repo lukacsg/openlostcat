@@ -1,6 +1,7 @@
 from .abstract_filter_operator import AbstractFilterOperator
 from openlostcat.utils import error, indent, base_indent_num
 from openlostcat.operators.quantifier_operators import ANY, ALL
+from openlostcat.operators.bool_operators import BoolConst, BoolREF
 
 
 class FilterAND(AbstractFilterOperator):
@@ -110,6 +111,11 @@ class FilterREF(AbstractFilterOperator):
         # wrapper quantifier is inherited from its subexpression
         self.wrapper_quantifier = filter_operator.wrapper_quantifier
 
+    def wrap_as_bool_op(self):
+        if isinstance(self.filter_operator, FilterConst):
+            return BoolREF("{#}" + self.name, BoolConst(self.filter_operator.const_val))
+        return super().wrap_as_bool_op()
+
     def apply(self, tag_bundle_set):
         return self.filter_operator.apply(tag_bundle_set)
 
@@ -212,11 +218,14 @@ class FilterConst(AbstractFilterOperator):
         :param const_val: True/False
         """
         if not isinstance(const_val, bool):
-            error("FilterConst must be initialized with a bool value.", const_val)
+            error("Const must be initialized with a bool value.", const_val)
         self.const_val = const_val
 
         # wrapper quantifier of a const filter will default to ANY
         self.wrapper_quantifier = ANY
+
+    def wrap_as_bool_op(self):
+        return BoolConst(self.const_val)
 
     def apply(self, tag_bundle_set):
         return tag_bundle_set if self.const_val else set()

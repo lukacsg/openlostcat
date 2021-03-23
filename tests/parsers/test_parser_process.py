@@ -22,10 +22,13 @@ class TestParserProcess(unittest.TestCase):
         """Test the singleton operator simplification functionality:
         If a bool AND or OR contains only 1 operator then it will be optimized (left out) by the parser
         """
-        operator_json = {"__OR_": [{"__AND_": {"__OR_": [{"__AND_": {"__ANY_test": {"__FILTERCONST_": True}}}]}}]}
+        operator_json = {"__OR_": [{"__AND_": {"__OR_": [{"__AND_": {"__ANY_test": True}}]}}]}
         op_parser = OpExpressionParser()
         self.assertEqual("ANY[test](const(True))",
                          TestParserProcess.__uniform_output(str(op_parser.parse(operator_json))))
+        operator_json2 = {"__OR_": [{"__AND_": {"__OR_": [{"__AND_": {"__CONST_": True}}]}}]}
+        self.assertEqual("const(True)",
+                         TestParserProcess.__uniform_output(str(op_parser.parse(operator_json2))))
 
     @patch('openlostcat.parsers.opexpressionparser.ANY.get_name')
     @patch('openlostcat.parsers.opexpressionparser.ALL.get_name')
@@ -51,9 +54,9 @@ class TestParserProcess(unittest.TestCase):
                             {"motor_vehicle": True},
                             {
                                 "__OR_": [
-                                    {"__FILTERCONST_test": True,
+                                    {"__CONST_test": True,
                                      "landuse": "residential"},
-                                    {"__FILTERCONST_test": False}
+                                    {"__CONST_test": False}
                                 ],
                                 "landuse": "residential"
                             }
@@ -69,10 +72,10 @@ class TestParserProcess(unittest.TestCase):
 
             },
             {"landuse": "residential"},
-            {"__FILTERCONST_test": False,
-             "__FILTERCONST_test2": False,
-             "__FILTERCONST_test3": False,
-             "__FILTERCONST_test4": True},
+            {"__CONST_test": False,
+             "__CONST_test2": False,
+             "__CONST_test3": False,
+             "__CONST_test4": True},
             True
         ]
         op_parser = OpExpressionParser()
@@ -139,19 +142,18 @@ class TestParserProcess(unittest.TestCase):
         """Test if an exception is raised on a parser error - wrong constructs / nesting of elements
         """
         op_parser = OpExpressionParser()
-        wrong_jsons = [{"__OR_": {"__FILTERCONST_": True}},
-                       {"__AND_": [{"__FILTERCONST_": True}]},
+        wrong_jsons = [{"__OR_": {"__CONST_": True}},
+                       {"__AND_": [{"__CONST_": True}]},
                        {"__NOT_": "#wrong"},
-                       {"__REF_": {"__FILTERCONST_": True}},
-                       {"__IMPL_": {"__FILTERCONST_": True}},
-                       {"__IMPL_": [{"__FILTERCONST_": True}]},
-                       {"__IMPL_": [{"__BOOLCONST_": True}]},
-                       {"__BOOLCONST_": "#wrong"},
-                       {"__FILTERCONST_": "#wrong"},
-                       {"key": {"__FILTERCONST_": True}},
+                       {"__REF_": {"__CONST_": True}},
+                       {"__IMPL_": {"__CONST_": True}},
+                       {"__IMPL_": [True]},
+                       {"__IMPL_": [{"__CONST_": True}]},
+                       {"__CONST_": "#wrong"},
+                       {"key": {"__CONST_": True}},
                        "wrong",
-                       {"__ANY_": {"__BOOLCONST_": True}},
-                       {"__ALL_": {"__BOOLCONST_": True}}]
+                       {"__ANY_": {"__ANY_2": True}},
+                       {"__ALL_": {"__ALL_2": True}}]
         for wrong_json in wrong_jsons:
             with self.subTest(wrong_json=wrong_json):
                 with self.assertRaises(SyntaxError):
@@ -163,11 +165,11 @@ class TestParserProcess(unittest.TestCase):
         op_parser = OpExpressionParser(RefDict({"#test": FilterREF("#test", FilterConst(True))},
                                                {"##test": BoolREF("#test", BoolConst(True))}))
         same_operators = [
-            ({"__AND_": {"__FILTERCONST_": True, "__FILTERCONST_2": True}},
-             {"__FILTERCONST_": True, "__FILTERCONST_2": True}),
-            ({"__OR_": [{"__FILTERCONST_": True}, {"__FILTERCONST_": True}]},
-             [{"__FILTERCONST_": True}, {"__FILTERCONST_": True}]),
-            ({"__BOOLCONST_": True}, True),
+            ({"__AND_": {"__CONST_": True, "__CONST_2": True}},
+             {"__CONST_": True, "__CONST_2": True}),
+            ({"__OR_": [True, True]},
+             [True, True]),
+            ({"__CONST_": True}, True),
             ({"__REF_": "#test"}, "#test"),
             ({"__REF_": "##test"}, "##test")
         ]
@@ -181,12 +183,12 @@ class TestParserProcess(unittest.TestCase):
         op_parser = OpExpressionParser(RefDict({"#test": FilterREF("#test", FilterConst(True))},
                                                {"##test": BoolREF("#test", BoolConst(True))}))
         bool_filter_operator_pairs = [
-            ({"__BOOLCONST_": True, "__BOOLCONST_2": True}, {"__FILTERCONST_": True, "__FILTERCONST_2": True}),
-            ([True, True], [{"__FILTERCONST_": True}, {"__FILTERCONST_": True}]),
-            ({"__NOT_": [True]}, {"__NOT_": {"__FILTERCONST_": True}}),
+            ({"__CONST_": True, "__ANY_test": True}, {"__CONST_": True, "__CONST_2": True}),
+            ([True, True, {"__ANY_test": True}], [True, True]),
+            ({"__NOT_": {"__ANY_test": True}}, {"__NOT_": True}),
             ("##test", "#test"),
-            ({"__IMPL_": [True, True]},
-             {"__IMPL_": [{"__FILTERCONST_": True}, {"__FILTERCONST_": True}]})
+            ({"__IMPL_": [True, True, {"__ANY_test": True}]},
+             {"__IMPL_": [True, True]})
         ]
         for bool_filter_operator_pair in bool_filter_operator_pairs:
             with self.subTest(bool_filter_operator_pair=bool_filter_operator_pair):
@@ -425,16 +427,16 @@ class TestParserProcess(unittest.TestCase):
                     "##test": True
                 },
                 {
-                    "##test2": False
+                    "#test3": False
                 },
                 {
                     "first": ["#test", "##test", "#test2"]
                 },
                 {
-                    "second": {"__OR_": ["#test", "##test"], "__REF_:": "##test2"}
+                    "second": {"__OR_": ["#test", "##test"], "__REF_:": "#test3"}
                 },
                 {
-                    "third": {"__IMPL_": ["#test", {"__NOT_": ["##test"]}, "##test2"]}
+                    "third": {"__IMPL_": ["#test", {"__NOT_": ["##test"]}, "#test3"]}
                 },
             ]
         }
@@ -471,7 +473,7 @@ class TestParserProcess(unittest.TestCase):
                                     CONST(True) \
                                 ) \
                             ] \
-                            REF ##test2( \
+                            REF {#}#test3( \
                                 CONST(False) \
                             ) \
                         ) \
@@ -491,7 +493,7 @@ class TestParserProcess(unittest.TestCase):
                                 ) \
                             ) \
                             => \
-                            REF ##test2( \
+                            REF {#}#test3( \
                                 CONST(False) \
                             ) \
                         ) \

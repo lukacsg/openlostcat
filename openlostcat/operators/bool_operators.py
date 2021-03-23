@@ -115,7 +115,7 @@ class BoolConst(AbstractBoolOperator):
         :param const_val:
         """
         if not isinstance(const_val, bool):
-            error("BoolConst must be initialized with a bool value.", const_val)
+            error("Const must be initialized with a bool value.", const_val)
         self.const_val = const_val
 
     def apply(self, tag_bundle_set):
