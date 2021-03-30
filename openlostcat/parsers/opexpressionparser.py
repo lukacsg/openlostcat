@@ -1,6 +1,6 @@
 from openlostcat.utils import error
 from openlostcat.operators.filter_operators import FilterAND, FilterOR, FilterNOT, AtomicFilter, FilterIMPL, FilterConst
-from openlostcat.operators.bool_operators import BoolAND, BoolOR, BoolNOT, BoolConst, BoolIMPL
+from openlostcat.operators.bool_operators import BoolAND, BoolOR, BoolNOT, BoolIMPL
 from openlostcat.operators.quantifier_operators import ANY, ALL
 from openlostcat.parsers.refdict import RefDict
 from openlostcat.operators.abstract_bool_operator import AbstractBoolOperator
@@ -105,14 +105,13 @@ class OpExpressionParser:
                                              "__OR_ key must contain a list element"),
             "AND": lambda x: create_and_check(x, self.__create_and, [dict],
                                               "__AND_ key must contain a dict element"),
-            "NOT": lambda x: create_and_check(x, self.__create_not, [list, dict],
-                                              "__NOT_ must contain a list or dict elements"),
+            "NOT": lambda x: create_and_check(x, self.__create_not, [list, dict, str, bool],
+                                              "__NOT_ must contain a valid operator expression"),
             "REF": lambda x: create_and_check(x, self.ref_dict.get_ref, [str],
                                               "__REF_ must contain a string elements"),
             "IMPL": lambda x: create_and_check(x, self.__create_impl, [list],
                                                "__IMPL_ key must contain a list element"),
-            "BOOLCONST": BoolConst,
-            "FILTERCONST": FilterConst,
+            "CONST": FilterConst,
             "ANY": lambda x: ANY(k, self.__parse_standalone_operator(x)),
             "ALL": lambda x: ALL(k, self.__parse_standalone_operator(x))
         }
@@ -129,7 +128,7 @@ class OpExpressionParser:
             list: self.__create_or,
             dict: self.__create_and,
             str: self.ref_dict.get_ref,
-            bool: BoolConst
+            bool: FilterConst
         }
         return switcher.get(type(source),
                             lambda x: error("Atomic value is not allowed here: ", x))(source)
