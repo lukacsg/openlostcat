@@ -168,7 +168,7 @@ The basic skeleton of the expected JSON structure is as follows. It must be a va
 The attribute `type` must always be given in the above form, in order to make sure the intention of the JSON object/file is a category rule collection for OpenLostCat.
 
 Rule definitions must be given in the form of a JSON array, each of its elements containing a category or a reference (named reusable subexpression) definition with its rules.
-Such a definition must be a json object with a single key, which is the name of the category or reference. An identifier starting with `#` denotes a reference, otherwise a category. Rules follow as JSON objects or arrays as shown below.
+Such a definition must be a json object with a single key, which is the name of the category or reference. An identifier starting with `#` denotes a reference, otherwise a category. The order of items in the array is important, and any reference used in a rule must be defined in advance. Rules follow as JSON objects or arrays as shown below. 
 
 The `properties` part is optional, where general directives can be specified for the whole categorization process.
 
@@ -249,6 +249,8 @@ A similar rule example follows, which matches locations with at least one wheelc
     "wheelchair": true
 }
 ```
+
+Note that a JSON object with multiple key-value pairs is parsed as an _AND_ condition, while a singleto JSON object is directly translated to the single condition it contains.
 
 ### Optional Tag-Value Checking
 
@@ -368,6 +370,8 @@ Note: the keyword `__OR_` can be enhanced with an arbitrary, distinctive index o
 }
 ```
 
+Note that a JSON array with multiple values is parsed as an _OR_ condition, while a JSON array is directly translated to the single condition it contains.
+
 Note: there is also a keyword `__AND_`, in a similar fashion. It is mainly for language completeness, as it is usually not necessary to be used.
 
 ## Reusing Subexpressions by References
@@ -460,6 +464,8 @@ The implication may have multiple premises and a single conclusion. In such case
 Note, that the implication is an universal condition, that is, a category defined by a single implication will match only if _all_ queried map elements in its proximity matches the condition. 
 In the example above, it means each element having a _public\_transport_ tag with either a _stop\_position_ or _platform_ value must have a _wheelchair_ tag as well with the value _yes_ or _designated_.
 
+Warning! The truth of implication does not mean there is any map object in the proximity with the given premises. The above example rules will match even if there is no public transport station in the proximity.
+
 ### All-Condition (universal quantification)
 
 Any condition can be turned into universal by using the universal quantification, denoted by the keyword `__ALL_`. 
@@ -485,6 +491,8 @@ The last implication in the previous section is logically equivalent with the fo
 ```
 
 Note that whenever a reference to a quantified (sub)expression is defined, its name must start with `##`. More explanation follows. 
+
+Warning! If the input set of map objects in the proximity happens to be empty, the result of a universal quantification for the empty set will be `true`.
 
 ### Any-Condition (existential quantification)
 
