@@ -1,4 +1,5 @@
 <img src="../openlostcat_logo.png" alt="[Logo]" width="25%" height="25%">
+
 # OpenLostCat Developers' Documentation
 
 ## General Structure
