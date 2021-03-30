@@ -1,3 +1,4 @@
+![Logo](./openlostcat_logo.png)
 # OpenLostCat Developers' Documentation
 
 ## General Structure

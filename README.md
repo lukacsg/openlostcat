@@ -1,3 +1,4 @@
+![Logo](./openlostcat_logo.png)
 # OpenLostCat - A Location Categorizer Based on OpenStreetMap
 
 ## What is it?
