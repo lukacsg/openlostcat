@@ -4,6 +4,8 @@
 
 ## General Structure
 
+OpenLostCat is designed to be extendable in multiple levels: operators can be extended, parsers are pluggable (for different file formats, such as yaml), the main entry points are replaceable (for using it in different contexts). 
+
 The main class diagram is as follows. See details about its parts in the subsequent sections. The main entry point for users is the _MainOsmCategorizer_ class, as written in the user documentation.
 
 ![class diagram](classdiagram.png)
