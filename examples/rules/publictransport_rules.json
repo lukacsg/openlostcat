@@ -18,7 +18,7 @@
             ]
         },
         {
-            "pt_non-accessible": true
+            "pt_inaccessible": true
         }
      ]
 }
