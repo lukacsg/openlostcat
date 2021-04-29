@@ -380,6 +380,8 @@ Note: there is also a keyword `__AND_`, in a similar fashion. It is mainly for l
 
 If a name being defined in the ruleset starts with the `#˙ character, it means a reference instead of a category definition. It does not generate a category but instead, a (sub)expression being named for reuse in possibly multiple rules.
 
+Using references is encouraged not only for better comprehensibility and reducing redundancy in rule definitions, but also for effective processing, since OpenLostCat uses a caching mechanism to speed up evaluation of rules or rule sets. If a reference is used multiple times during a categorization process, it will only be evaluated once.
+
 The next example shows a definition of two references defined for different types of public transport accessibility, being combined into a category with an or-condition:
 
 ```
@@ -412,7 +414,9 @@ We can also use a reference in a JSON object-context, using the keyword `__REF_`
 
 Note: Some (sub)expressions must be preceded with two hashmarks `##` to be defined as references, depending on their intended logical level of use in category definitions (also influenced by the type of operators they contain). See more details later about this.
 
-### Default (Fallback) Category
+### Const expression and default (Fallback) Category
+
+A _constant_ operand is either an explicit _true_ or _false_ boolean value, which can be used at any point where a subexpression is expected in OpenLostCat rules.
 
 The default categorization strategy is `firstMatch`, which means the rules of category definitions are evaluated for a location in the order of appearance in the JSON category catalog, and the first matching category is assigned, without further evaluation. If no category is matched, OpenLostCat returns the category index -1. By adding a default fallback category with a simple _bool constant_ rule, this can be substituted with a named category for locations not matching any of the other categories. 
 
@@ -463,10 +467,12 @@ The implication may have multiple premises and a single conclusion. In such case
 }
 ```
 
-Note, that the implication is an universal condition, that is, a category defined by a single implication will match only if _all_ queried map elements in its proximity matches the condition. 
+An implication condition being evaluated for a single object (tag bundle) is basically equivalent to a disjunction (_OR_ condition) where all its premises are negated and its single conclusion remains positive. Therefore, if any of the premises evaluates to false, the implication becomes true for the object (tag bundle) without looking at its conclusion or further premises.
+
+Applying to sets of tag bundles, the implication is in fact a universal condition, that is, a category defined by a single implication will match only if _all_ queried map elements in its proximity matches the condition. 
 In the example above, it means each element having a _public\_transport_ tag with either a _stop\_position_ or _platform_ value must have a _wheelchair_ tag as well with the value _yes_ or _designated_.
 
-Warning! The truth of implication does not mean there is any map object in the proximity with the given premises. The above example rules will match even if there is no public transport station in the proximity.
+Warning! From the above, it follows that the truth of implication does not mean there is any map object in the proximity with the given premises. The above example rules will match even if there is no public transport station in the proximity.
 
 ### All-Condition (universal quantification)
 
@@ -571,14 +577,46 @@ For example, the following rule states a location belongs to the category being 
 
 Note that the implication part is an item(filter)-level subexpression, while the parts enclosed with the quantifiers ALL and ANY, as well as the whole expression are category(bool)-level (sub)expressions.
 
+Considering implicit quantifier wrapping, the above expression is equivalent with either one of the following.  
+```
+{
+    "__IMPL_": [ 
+            {"public_transport": ["stop_position", "platform"] }, 
+            {"wheelchair": [true, "designated"]} 
+    ],
+    "__ANY_": {
+        "shop": "supermarket",
+        "wheelchair": [true, "designated"]
+    }
+```
+```
+{
+    "__ALL_": {
+        "__IMPL_": [ 
+                {"public_transport": ["stop_position", "platform"] }, 
+                {"wheelchair": [true, "designated"]} 
+        ]
+    },
+    "__AND_": {
+        "shop": "supermarket",
+        "wheelchair": [true, "designated"]
+    }
+```
+
+Note that one of the quantifiers must be kept, since it will explicitly raise the level of expression to the category (bool) level, enforcing an implicit quantification of the other operand. If both quantifiers were omitted, the expression would remain on the item (filter) level, and therefore, the whole as a conjunction (AND condition) would be implicitly quantified, which would not be equivalent with the above. 
+
+Nor the explicit `__AND_` condition cannot be left out from the latter variant, since otherwise the atomic filters would be quantified one by one.
+
 ### The Two Types of References
 
 As mentioned already, references are named subexpressions as shorthands for reusing them multiple times in the rules. Their definition looks similar as a category definition but their name starts with `#`. Names of some references start with `##`. This distinction has a meaning, and separates two types of references explicitly:
 
-* Non-quantified, item(filter)-level references start with a single `#`. They define a property being evaluated for potentially each single map object in the proximity of a location being categorized. 
+* __Non-quantified, item(filter)-level references start with a single `#`.__ They define a property being evaluated for potentially each single map object in the proximity of a location being categorized. 
 These references can be used inside quantified expressions, or can be used directly as category-level expressions in which case they will be implicitly wrapped by a quantifier.
-* Quantified, category(bool)-level references start with `##`. They define a property being evaluated once for the whole set of map objects in the proximity of a location being categorized.
+* __Quantified, category(bool)-level references start with `##`.__ They define a property being evaluated once for the whole set of map objects in the proximity of a location being categorized.
 These references must either be explicitly quantified in their definition expression, or will be implicitly wrapped with a quantifier directly. They can be used as a standalone category definition or combined with category(bool)-level operators to define more complex category rules.
+
+In short: A reference with a double `##` prefix can be used only on the category (bool) level (if it contains a set/filter level expression, it will implicitly be quantified _by_ the reference itself), while a reference with a single `#` prefix can either be used on the set/filter level or on the category/bool level, in the latter case, implicit quantification will be done on the level of expression containing the reference. An explicitly quantified expression can not be used in a reference with a single `#` prefix. 
 
 For instance, the complex example above can alternatively be defined by references, where the wheelchair-accessibility (barrier-freeness) is defined as an item-level reference as being a property of single map objects, and the condition of the existence of a barrier-free supermarket on one hand, and the public transport facilities being each barrier-free on the other hand, are defined as category-level references:
 
@@ -772,6 +810,43 @@ A classical equivalence is the exchangeability of quantifiers with negation, whi
 
 Note that the quantifier ANY cannot be omitted from the second variant, because in that case, the implicit quantification would have been done on the top level of the expression, meaning there is a map object nearby not having a highway tag with any of the listed values. This would almost always evaluate to true, wherever there is any map object not tagged with highway in the proximity of the location. 
 
+For a similar reason, nor can the quantifier ALL be omitted from the first variant, because the implicit quantification of the operator NOT is ANY, meaning there is a map object nearby not having a highway tag with any of the listed values.
+
+The above quantifier-negation interchangeability can be derived from the so-called _De Morgan_ rules, stating the interchangeability of negation with conjunctive and disjunctive conditions in the following way. The two expressions below are equivalent:
+
+```
+{
+    "__NOT_": [
+        {"public_transport": ["stop_position", "platform"] },
+        {"amenity": "ferry_terminal"}
+    ]       
+}
+```
+```
+{
+    "__NOT_1": { "public_transport": ["stop_position", "platform"] },
+    "__NOT_2": { "amenity": "ferry_terminal"}
+}
+```
+And similarly:
+```
+{
+    "__NOT_": { 
+        "public_transport": ["stop_position", "platform"], 
+        "wheelchair": [true, "designated"]
+    }
+}
+```
+```
+{{"public_transport": ["stop_position", "platform"] }, 
+        {"wheelchair": [true, "designated"]} 
+    "__OR_": [
+        { "__NOT_": { "public_transport": ["stop_position", "platform"] } }, 
+        { "__NOT_": { "wheelchair": [true, "designated"] } }
+    ]
+}
+```
+
 Equivalences present on the level of multiple categories as well.
 
 For example, using first-matching category evaluation, the following two examples are equvalent definitions of a category catalog (if the allowed values for _wheelchair_ are the listed ones in the second variant):
@@ -815,6 +890,8 @@ For example, using first-matching category evaluation, the following two example
 
 ### Repeating Category Names
 
+An alternative way of expressing certain rules is by utilizing the explicit order of rules and (re)using the same category name at different points.
+
 It is possible to define a category name multiple times. Since OpenLostCat indexes the categories, such a definition will yield a category assignment with a different index but the same name. This can be utilized in special cases, when, for example, the user treats these as a single category by name, but wants to know which rule caused the location being categorized as such.
 
 The following rules assign the same category name to locations with general public transport stops and stations, and locations having only ferry connections, but the latter gets a different numeric index for its category:
@@ -856,6 +933,8 @@ Another example is when a category is defined using a positive-negative-positive
 ```
 
 Both of the above examples are meant being evaluated by the (default) first matching strategy. 
+
+If only the category names are relevant, they can be rewritten using the logical operators without a default rule.
 
 ## Rule Syntax Reference
 
