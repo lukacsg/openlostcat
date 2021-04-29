@@ -31,11 +31,15 @@ based on logical rules defined in JSON for tags of OpenStreetMap objects located
 
 * Assignment of user-defined location category labels to the given locations, based on queried OpenStreetMap objects in their proximity
 
-* Comrehensive and extensible location category rule syntax in JSON, where a tag bundle represents an OpenStreetMap object
+* Comprehensive and extensible location category rule syntax in JSON, where a tag bundle represents an OpenStreetMap object
 
 * Single-category (first matching rule strategy) or multi-category (all matching rule strategy) labeling for locations
 
+* Target categories indexed in the order of rules, mapped to category names
+
 * Reusable rules or subexpressions by named references (inside a location category catalog)
+
+* Visualization of the category catalog (set of parsed expressions rules)
 
 * Debug feature with explicit AST (abstract syntax tree) output
 
@@ -143,6 +147,7 @@ After querying the OpenStreetMap objects around the locations, the _categorize(.
 
 The returning data is either a tuple (for single-category-matching) or a list of tuples containing the index of the category (in the order of appearance in the rule collection file), the name of the category and, optionally, debug information. If no category matches, the returned index is -1, the name is Null and the debug info remains empty.
 
+Refer to the Quick User Reference at the bottom of this document for a listing of functions and operators.
 
 ## Category Catalog (Rule Collection) Format
 
@@ -233,7 +238,7 @@ For instance, the following example condition matches any location where a map o
 { "subway": true }
 ```
 
-### Multiple Tag-Value Checking
+### Multiple Tag-Value Checking (_AND_)
 
 Multiple tag-value checking conditions (atomic filters) can be but together into a JSON object. In such cases, the condition matches if both of them is met for at least one of the tag bundles of the queried objects at a location (a.k.a. conjunctive, or _AND_ condition). The following condition evaluates to true for every location where a subway stop position is found (there must be a single object having both tags with the given values):
 
@@ -252,9 +257,22 @@ A similar rule example follows, which matches locations with at least one wheelc
 }
 ```
 
-Note that a JSON object with multiple key-value pairs is parsed as an _AND_ condition, while a singleto JSON object is directly translated to the single condition it contains.
+Note that a JSON object with multiple key-value pairs is parsed as an _AND_ condition, while a singleton JSON object is directly translated to the single condition it contains.
 
-### Optional Tag-Value Checking
+Additional remark: An _AND_ condition can also be expressed using an explicit JSON keyword prefix `__AND_`. The above exampe is equivalent with this expression:
+
+```
+{
+    "__AND_":
+        {
+            "shop": "supermarket",
+            "wheelchair": true
+        }
+}
+```
+
+
+### Optional Tag-Value Checking (_null_ in value list)
 
 If `null` is added to a tag value list, it means the tag key is not mandatory to be present among the tags, but if present then its value must be one of the other elements in the list.
 An obvious example is to find locations which are candidates for wheelchair-shopping (there is a supermarket with either explicit wheelchair-accessibility or limited accessibility, or no wheelchair information, i.e. no explicit negation of wheelchair accessibility):
@@ -266,7 +284,7 @@ An obvious example is to find locations which are candidates for wheelchair-shop
 }
 ```
 
-### Negative Condition
+### Negative Condition (_NOT_)
 
 An explicit negation may be added to the positive key-value conditions, stating a location matches only if there is at least one nearby object matching the listed positive condition(s) and not matching the condition(s) written inside the negated part at the same time. The following example matches all locations where a supermarket is found without an explicit statement of wheelchair inaccessibility (this is in fact, equivalent with the above example, if there are no more possible values of _wheelchair_ than listed above and here): 
 
@@ -289,7 +307,7 @@ In the following example, a supermarket must be found with no explicit wheelchai
 }
 ```
 
-### Checking the Existence or Absence of a Tag
+### Checking the Existence or Absence of a Tag (_null_ value)
 
 Using a _null_ JSON value as a tag value in OpenLostCat conditions means a no-value, that is, the tag named should be missing (or, if not missing, must have the other values listed).
 
@@ -321,7 +339,7 @@ The following example matches wherever a map object is found nearby with a _publ
 }
 ```
 
-### Alternative Tag-Value Checking
+### Alternative Tag-Value Checking (_OR_)
 
 Multiple key-value matching conditions can be combined as alternatives (a.k.a. disjunctive or _OR_ conditions), using standalone JSON arrays. The following example evaluates to true for a location if one of the queried nearby map objects have either one of the listed tag-values (either light-rail-, or subway-, or train-tagged): 
 
@@ -343,7 +361,7 @@ In order to get meaningful conditions, the conjunctive and disjunctive condition
     { "public_transport": "stop_position", "train": true }
 ]
 ```
-The above condition is equivalent with the following, where the special key `__OR` introduces the alternative (sub)conditions:
+The above condition is equivalent with the following, where the special key `__OR_` introduces the alternative (sub)conditions:
 
 ```
 {                
@@ -374,11 +392,9 @@ Note: the keyword `__OR_` can be enhanced with an arbitrary, distinctive index o
 
 Note that a JSON array with multiple values is parsed as an _OR_ condition, while a JSON array is directly translated to the single condition it contains.
 
-Note: there is also a keyword `__AND_`, in a similar fashion. It is mainly for language completeness, as it is usually not necessary to be used.
+## Reusing Subexpressions by References (#, ## and _REF_)
 
-## Reusing Subexpressions by References
-
-If a name being defined in the ruleset starts with the `#˙ character, it means a reference instead of a category definition. It does not generate a category but instead, a (sub)expression being named for reuse in possibly multiple rules.
+If a name being defined in the ruleset starts with the `#` character, it means a reference instead of a category definition. It does not generate a category but instead, a (sub)expression being named for reuse in possibly multiple rules.
 
 The next example shows a definition of two references defined for different types of public transport accessibility, being combined into a category with an or-condition:
 
@@ -410,9 +426,12 @@ We can also use a reference in a JSON object-context, using the keyword `__REF_`
 
 ```
 
-Note: Some (sub)expressions must be preceded with two hashmarks `##` to be defined as references, depending on their intended logical level of use in category definitions (also influenced by the type of operators they contain). See more details later about this.
+References can be nested into each other. Cycles of references are not possible as any reference can only be used only after having been defined.  
 
-### Default (Fallback) Category
+Note: Some (sub)expressions must be preceded with two hashmarks `##` to be defined as references, depending on their intended logical level of use in category definitions (also influenced by the type of operators they contain). See more details later (Section _Two types of references_) about this.
+
+
+### Default (Fallback) Category (_true_ constant)
 
 The default categorization strategy is `firstMatch`, which means the rules of category definitions are evaluated for a location in the order of appearance in the JSON category catalog, and the first matching category is assigned, without further evaluation. If no category is matched, OpenLostCat returns the category index -1. By adding a default fallback category with a simple _bool constant_ rule, this can be substituted with a named category for locations not matching any of the other categories. 
 
@@ -434,7 +453,7 @@ The following example defines two categories for public transport accessibility 
 
 Note: For this to be evaluated correctly, the  `evaluationStrategy` must be set to `firstMatching` in the `properties` of the category catalog, or left out, as it is the default.
 
-### Implication Condition
+### Implication Condition (_IMPL_)
 
 Logical implication is a form of statement saying whenever a given condition is true then another condition must also be true. 
 OpenLostCat can treat such statements as categorization conditions with the keyword `__IMPL_`, meaning that a location matches the category defined by the implication 
@@ -463,12 +482,14 @@ The implication may have multiple premises and a single conclusion. In such case
 }
 ```
 
+... equiv ... not a or not b or c ... see below...
+
 Note, that the implication is an universal condition, that is, a category defined by a single implication will match only if _all_ queried map elements in its proximity matches the condition. 
 In the example above, it means each element having a _public\_transport_ tag with either a _stop\_position_ or _platform_ value must have a _wheelchair_ tag as well with the value _yes_ or _designated_.
 
 Warning! The truth of implication does not mean there is any map object in the proximity with the given premises. The above example rules will match even if there is no public transport station in the proximity.
 
-### All-Condition (universal quantification)
+### All-Condition (_ALL_, universal quantification)
 
 Any condition can be turned into universal by using the universal quantification, denoted by the keyword `__ALL_`. 
 It naturally makes sense with negated conditions, as seen in the following example, where we define the condition of a location not having public transport accessibility, that is, for all queried map elements in its proximity, there is no public transport stop or platform tag. In other words, neither of the queried map elements is a public transport stop or platform object:
@@ -496,7 +517,7 @@ Note that whenever a reference to a quantified (sub)expression is defined, its n
 
 Warning! If the input set of map objects in the proximity happens to be empty, the result of a universal quantification for the empty set will be `true`.
 
-### Any-Condition (existential quantification)
+### Any-Condition (_ANY_, existential quantification)
 
 Similarly to the universal quantification introduced above, the existential quantifier "__ANY_" can be used in rules, stating explicitly that at least one map object in the proximity of the location must be found with the nested condition, in order the location to match the category defined by the rule.
 
@@ -571,7 +592,7 @@ For example, the following rule states a location belongs to the category being 
 
 Note that the implication part is an item(filter)-level subexpression, while the parts enclosed with the quantifiers ALL and ANY, as well as the whole expression are category(bool)-level (sub)expressions.
 
-### The Two Types of References
+### The Two Types of References (# vs. ##)
 
 As mentioned already, references are named subexpressions as shorthands for reusing them multiple times in the rules. Their definition looks similar as a category definition but their name starts with `#`. Names of some references start with `##`. This distinction has a meaning, and separates two types of references explicitly:
 
@@ -917,6 +938,70 @@ SingleValue conversions/semantics in atomic filters:
  - null: the key is optional in the tag bundle
 
 Printing the categorizer outputs the abstract syntax tree of the parsed category catalog, where the operators on set/filter level are written with lowercase and the operators on category/bool level with uppercase letters.
+
+
+## Quick User Reference
+
+### Classes and Methods 
+
+    [main_osm_categorizer.py](openlostcat/main_osm_categorizer.py)
+
+      MainOsmCategorizer
+        __init ...   
+        categorize
+        get_categories_enumerated_key_map()
+                ...index to name mapping
+        print(...)
+                ...parsed ruleset (category catalog), visualization
+                references resolved; levels visible lower & upper case ...
+
+                
+    [osmqueryutils/ask_osm.py](openlostcat/osmqueryutils/ask_osm.py)
+
+      ask_osm
+      ask_osm_around_point
+      ask_osm_around_point_df
+      ask_osm_around_point_np
+
+
+### JSON Rule Operators
+
+```
+{
+     "type": "CategoryRuleCollection",
+     "properties": {
+         "evaluationStrategy": "all"
+     },
+     "categoryRules": [
+        {
+            "category_or_reference_1_name": ...rules_of_category_or_reference_1...
+        },
+        {
+            "category_or_reference_2": ...rules_of_category_or_reference_2...
+        },
+        ...further_category_or_reference_definitions...
+     ]
+}
+```
+
+
+    name   level    description   key-value syntax   standalone syntax   default quantifier wrapper   example
+
+atomic filter
+const 
+const 
+and
+and
+or
+or
+not
+not
+impl
+impl
+any
+all
+ref
+ref
 
 
 ## Further Info and Contribution
