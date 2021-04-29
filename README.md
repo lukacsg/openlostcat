@@ -271,6 +271,7 @@ Additional remark: An _AND_ condition can also be expressed using an explicit JS
 }
 ```
 
+Note that these combinations apply together for each map object (tag bundle) in the proximity. If you want to formulate a condition referring to different map objects, such as stating a supermarket and a (maybe another) wheelchair-accessible asset is nearby, then these two conditions must be formulated and bracketed as separate subexpressions, each (or at least one of them) wrapped into an ANY quantifier and combined together with a (boolean/category-level) conjunction. Details follow (see the section about the ANY quantifier below).
 
 ### Optional Tag-Value Checking (_null_ in value list)
 
@@ -1043,6 +1044,9 @@ Printing the categorizer outputs the abstract syntax tree of the parsed category
 
 ### JSON Rule Operators
 
+A valid OpenLostCat rule collection JSON file looks like: 
+
+
 ```
 {
      "type": "CategoryRuleCollection",
@@ -1061,24 +1065,25 @@ Printing the categorizer outputs the abstract syntax tree of the parsed category
 }
 ```
 
+The operators used in category and reference definitions are the following: 
 
-    name   level    description   key-value syntax   standalone syntax   default quantifier wrapper   example
-
-atomic filter
-const 
-const 
-and
-and
-or
-or
-not
-not
-impl
-impl
-any
-all
-ref
-ref
+|  Name         |  Placement/Operand Level  |  Result Level     |  Description                                                                                                          |  Key-value syntax  |  Standalone syntax |  Default quantifier wrapper  |  Example  |
+|  ----         |  -----                    |  ------------     |  -----------                                                                                                          |  ----------------  |  ----------------- |  --------------------------  |  -------  |
+| Atomic filter |  item(filter)             |  item(filter)     |  Tests whether a tag value equals the given value, or any of the given values (list case), or is missing (null)       |  `"key" : "value"`, `"key" : ["value1", ...]`, `"key" : null` | - | ANY | `"public_transport" : "stop_position"`, `"public_transport" : ["stop_position", "platform"]` |
+| Const         |  item(filter)             |  item(filter)     |  Always true or false, according to the value given.                                                                  |  `"__CONST_xy" : true`, ˙"__CONST_xy": false˙ | `true`, `false` | CONST | `true` |
+| Const         |  category(bool)           |  category(bool)   |  Always true or false, according to the value given.                                                                  |  `"__CONST_xy" : true`, ˙"__CONST_xy": false˙ | `true`, `false` | n.r. | `true` |
+| Any           |  item(filter)             |  category(bool)   |  Tests whether the truth set of the operand is not empty (there is at least one item for which the operand it true).  |  `"__ANY_xy" : ...` | - | n.r. |  `"__ANY_": { "public_transport" : "stop_position" }` |
+| All           |  item(filter)             |  category(bool)   |  Tests whether the truth set of the operand equals to the input set (the operand it true for all items).              |  `"__ALL_xy" : ...` | - | n.r. |  `"__ALL_": { "public_transport" : null }` |
+| Ref (#)       |  item(filter)             |  item(filter)     |  Tests whether the expression defined by the reference is true (gives the truth set of the operand).                  |  `"__REF_xy" : "#ref_name"` | `"#ref_name"` | inherits from operand | `"#pt_platform"` where it was defined in a separate rule ss ` { "#pt_platform" : { "public_transport" : "stop_position" } }` | 
+| Ref (##)      |  category(bool)           |  category(bool)   |  Tests whether the expression defined by the reference is true.                                                       |  `"__REF_xy" : "##ref_name"` | `"##ref_name"` | n.r. | `"##pt_accessible"` where it was defined in a separate rule ss ` { "##pt_accessible" : { "__ANY_": { "public_transport" : "stop_position" } } }` |
+| And           |  item(filter)             |  item(filter)     |  True if all operands are true (intersects the truth sets of the operands).                                           |  `"__AND_xy" : { ..., ..., ..... }` | `{ ..., ..., ..... }` | ALL if each operand wraps to ALL, else ANY | `{"public_transport" : "stop_position", "wheelchair" : "yes" } |
+| And           |  category(bool)           |  category(bool)   |  True if all operands are true.                                                                                       |  `"__AND_xy" : { ..., ..., ..... }` | `{ ..., ..., ..... }` | n.r. | `{ "__REF_" : "##pt_accessible", "__ANY_" : { "shop" : "supermarket" } } }` |
+| Or            |  item(filter)             |  item(filter)     |  True if either of the operands is true (unites the truth sets of the operands).                                      |  `"__OR_xy" : [ ..., ..., ..... ]` | `[ ..., ..., ..... ]` | ALL if either operand wraps to ALL, else ANY | `[ "#pt_platform", { "shop" : "supermarket" } ]` |
+| Or            |  category(bool)           |  category(bool)   |  True if either of the operands is true.                                                                              |  `"__OR_xy" : [ ..., ..., ..... ]` | `[ ..., ..., ..... ]` | n.r. | `[ "##pt_accessible", { "__ANY_" : { "shop" : "supermarket" } } ]` |
+| Not           |  item(filter)             |  item(filter)     |  Negates the truth value of the operand (forms the complementer set of the truth set of the operand).                 |  `"__NOT_xy" : ...` | - | inherits from operand | `"__NOT_" : { "shop" : null }` |
+| Not           |  category(bool)           |  category(bool)   |  Negates the truth value of the operand.                                                                              |  `"__NOT_xy" : ...` | - | n.r. | `"__NOT_" : "##pt_accessible"` |
+| Impl          |  item(filter)             |  item(filter)     |  Tests whether the last operand (conclusion) is implied by the other operands (premises).                             |  `"__IMPL_xy" : [ ..., ..., ..... ]` | - | ALL | `"__IMPL_" : [ "#pt_platform", { "wheelchair" : "yes" } ]` |
+| Impl          |  category(bool)           |  category(bool)   |  Tests whether the last operand (conclusion) is implied by the other operands (premises).                             |  `"__IMPL_xy" : [ ..., ..., ..... ]` | - | n.r. | `"__IMPL_" : [ "##pt_accessible", { "__ANY_" : { "shop" : "supermarket" } } ]` |
 
 
 ## Further Info and Contribution
