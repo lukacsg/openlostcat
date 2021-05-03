@@ -1080,7 +1080,7 @@ Example
 ```categorizer.get_categories_enumerated_key_map()```
 
 ___
-### Print
+#### Print
 
 Visualization of the category catalog (set of parsed expression rules)
 
