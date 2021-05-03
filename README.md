@@ -1089,6 +1089,8 @@ Visualization of the category catalog (set of parsed expression rules)
 ### Ask_osm
 [osmqueryutils/ask_osm.py](openlostcat/osmqueryutils/ask_osm.py)
 
+Methods:
+
 #### ask_osm
 ```ask_osm(query, url=overpass_url)```
 
@@ -1128,7 +1130,7 @@ Parameters
  ```ask_osm_around_point(47.5001, 19.0247, distance = 300)```
  
 ___
-###ask_osm_around_point_df
+#### ask_osm_around_point_df
  
 ```ask_osm_around_point_df(df_row, distance=100, url=overpass_url)```
 
