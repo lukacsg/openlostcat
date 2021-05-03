@@ -39,7 +39,7 @@ based on logical rules defined in JSON for tags of OpenStreetMap objects located
 
 * Reusable rules or subexpressions by named references (inside a location category catalog)
 
-* Visualization of the category catalog (set of parsed expressions rules)
+* Visualization of the category catalog (set of parsed expression rules)
 
 * Debug feature with explicit AST (abstract syntax tree) output
 
@@ -1017,17 +1017,16 @@ SingleValue conversions/semantics in atomic filters:
 
 Printing the categorizer outputs the abstract syntax tree of the parsed category catalog, where the operators on set/filter level are written with lowercase and the operators on category/bool level with uppercase letters.
 
-
-## Quick User Reference
-
-### Classes and Methods 
+## Quick User Reference of Classes and Methods 
 
 
-#### MainOsmCategorizer 
+### MainOsmCategorizer 
 [main_osm_categorizer.py](openlostcat/main_osm_categorizer.py) 
 
-##### Methods
-```init(category_catalog_source, debug=False, category_catalog_parser=None)```
+Methods:
+
+#### Constructor
+```__init__(self, category_catalog_source, debug=False, category_catalog_parser=None)```
 
 Initializes the categorizer by setting up the category catalog
 
@@ -1043,10 +1042,11 @@ Parameters
  _or_
  
  ```categorizer = MainOsmCategorizer('rules/publictransport_rules.json')```
+ ___
  
-___
+#### categorize
 
-```categorize(osm_json_dict)```
+```categorize(self, osm_json_dict)```
 
 Categorizes a location by the osm tag bundle set of the objects located there/nearby
 
@@ -1062,8 +1062,10 @@ Example
 ```categorizer.categorize(ask_osm_around_point(47.5001, 19.0247, distance = 300))```
  
 ___
+
+#### get_categories_enumerated_key_map
  
-```categorizer.get_categories_enumerated_key_map()```
+```get_categories_enumerated_key_map(self)```
  
  
 
@@ -1078,20 +1080,16 @@ Example
 ```categorizer.get_categories_enumerated_key_map()```
 
 ___
+### Print
 
-
-```Print()```
-
-Visualization of the category catalog (set of parsed expressions rules)
-
-Example
+Visualization of the category catalog (set of parsed expression rules)
 
 ```print(categorizer)```
 
-#### Ask_osm
+### Ask_osm
 [osmqueryutils/ask_osm.py](openlostcat/osmqueryutils/ask_osm.py)
 
-##### Methods
+#### ask_osm
 ```ask_osm(query, url=overpass_url)```
 
 Queries the Overpass API with a query string
@@ -1111,6 +1109,7 @@ Parameters
  ```
  
 ___
+#### ask_osm_around_point
 
 ```ask_osm_around_point(lat, lng, distance=100, url=overpass_url)```
 
@@ -1129,6 +1128,7 @@ Parameters
  ```ask_osm_around_point(47.5001, 19.0247, distance = 300)```
  
 ___
+###ask_osm_around_point_df
  
 ```ask_osm_around_point_df(df_row, distance=100, url=overpass_url)```
 
@@ -1148,6 +1148,7 @@ Parameters
  ```df.apply(ask_osm_around_point_df, axis = 1)```
  
 ___
+#### ask_osm_around_point_np
 
 ```ask_osm_around_point_np(coord_row, distance=100, lat_index=0, lng_index=1, url=overpass_url)```
 
@@ -1164,7 +1165,7 @@ Parameters
  
  ```np.apply_along_axis(ask_osm_around_point_np, 1, coords)```
 
-### JSON Rule Operators
+## Quick User Reference of JSON Rule Operators
 
 A valid OpenLostCat rule collection JSON file looks like: 
 
