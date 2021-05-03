@@ -1080,11 +1080,13 @@ Example
 ```categorizer.get_categories_enumerated_key_map()```
 
 ___
-#### Print
+#### print
 
 Visualization of the category catalog (set of parsed expression rules)
 
 ```print(categorizer)```
+
+___
 
 ### Ask_osm
 [osmqueryutils/ask_osm.py](openlostcat/osmqueryutils/ask_osm.py)
