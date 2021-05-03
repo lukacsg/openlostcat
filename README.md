@@ -1022,25 +1022,148 @@ Printing the categorizer outputs the abstract syntax tree of the parsed category
 
 ### Classes and Methods 
 
-    [main_osm_categorizer.py](openlostcat/main_osm_categorizer.py)
 
-      MainOsmCategorizer
-        __init ...   
-        categorize
-        get_categories_enumerated_key_map()
-                ...index to name mapping
-        print(...)
-                ...parsed ruleset (category catalog), visualization
-                references resolved; levels visible lower & upper case ...
+#### MainOsmCategorizer 
+[main_osm_categorizer.py](openlostcat/main_osm_categorizer.py) 
 
-                
-    [osmqueryutils/ask_osm.py](openlostcat/osmqueryutils/ask_osm.py)
+##### Methods
+```init(category_catalog_source, debug=False, category_catalog_parser=None)```
 
-      ask_osm
-      ask_osm_around_point
-      ask_osm_around_point_df
-      ask_osm_around_point_np
+Initializes the categorizer by setting up the category catalog
 
+Parameters
+ - `category_catalog_source`:   a JSON structure as python dictionary or a file path string
+ - `debug`:                     Boolean, set to true for more detailed output
+ - `category_catalog_parser`:   parse using the given parser
+ 
+ Example
+ 
+ ```categorizer =  MainOsmCategorizer(json.loads('{ "type": "CategoryRuleCollection", "categoryRules": [ { "pt_accessible": { "public_transport": "stop_position" } }, { "pt_inaccessible": true } ] }'))```
+ 
+ _or_
+ 
+ ```categorizer = MainOsmCategorizer('rules/publictransport_rules.json')```
+ 
+-
+
+```categorize(osm_json_dict)```
+
+Categorizes a location by the osm tag bundle set of the objects located there/nearby
+
+Parameters
+ - `osm_json_dict`: tag bundle set of the osm objects at/near the location
+ 
+ `return` categories matching the location by the given strategy
+ 
+ 
+Example
+
+```categorizer.categorize(osm_neighborhood_railway_station)```
+```categorizer.categorize(ask_osm_around_point(47.5001, 19.0247, distance = 300))```
+ 
+ -
+ 
+```categorizer.get_categories_enumerated_key_map()```
+ 
+ 
+
+```get_categories_enumerated_key_map()```
+
+Retrieves the categories parsed by init
+
+`return` categories
+
+Example
+
+```categorizer.get_categories_enumerated_key_map()```
+
+---
+
+
+```Print()```
+
+Visualization of the category catalog (set of parsed expressions rules)
+
+Example
+
+```print(categorizer)```
+
+#### Ask_osm
+[osmqueryutils/ask_osm.py](openlostcat/osmqueryutils/ask_osm.py)
+
+##### Methods
+```ask_osm(query, url=overpass_url)```
+
+Queries the Overpass API with a query string
+
+Parameters
+ - `query`: an overpass query string
+ - `url`:   API address
+ 
+ `return` query results in json
+ 
+ Example
+ 
+ ```
+ ask_osm("""[out:json];
+                nwr[tourism=hotel](47.507, 19.034, 47.566, 19.063);
+            out tags center;""")
+ ```
+ 
+ -
+
+```ask_osm_around_point(lat, lng, distance=100, url=overpass_url)```
+
+Queries the Overpass API around a point with a distance as radius
+
+Parameters
+ - `lat`:       wgs84 latitude
+ - `lng`:       wgs84 longitude
+ - `distance`:  radius in meters
+ - `url`:       API address
+ 
+ `return` query results in json
+ 
+ Example
+ 
+ ```ask_osm_around_point(47.5001, 19.0247, distance = 300)```
+ 
+ -
+ 
+```ask_osm_around_point_df(df_row, distance=100, url=overpass_url)```
+
+Queries the Overpass API around a point with a distance as radius, given in a dataframe
+
+Parameters
+ - `df_row`:    a dataframe row with wgs84 coordinates in fields named lat, lng
+ - `distance`:  radius in meters
+ - `url`:       API address
+ 
+ `return` query results in json
+ 
+ Example
+ 
+ ```df.T.apply(ask_osm_around_point_df)``` 
+ _or_  
+ ```df.apply(ask_osm_around_point_df, axis = 1)```
+ 
+ -
+
+
+```ask_osm_around_point_np(coord_row, distance=100, lat_index=0, lng_index=1, url=overpass_url)```
+
+Queries the Overpass API around a point with a distance as radius, given in a np array of coords
+
+Parameters
+ - `df_row`:    a dataframe row with wgs84 coordinates in fields named lat, lng
+ - `distance`:  radius in meters
+ - `url`:       API address
+ 
+ `return` query results in json
+ 
+ Example
+ 
+ ```np.apply_along_axis(ask_osm_around_point_np, 1, coords)```
 
 ### JSON Rule Operators
 

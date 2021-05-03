@@ -52,10 +52,10 @@ def ask_osm_around_point_df(df_row, distance=100, url=overpass_url):
     Examaple:
     df.T.apply(ask_osm_around_point_df) or  df.apply(ask_osm_around_point_df, axis = 1)
 
-    :param df_row:
-    :param distance:
-    :param url:
-    :return:
+    :param df_row:   a dataframe row with wgs84 coordinates in fields named lat, lng
+    :param distance: radius in meters
+    :param url:      API address
+    :return:         query results in json
     """
     return ask_osm_around_point(lat=df_row.lat, lng=df_row.lng, distance=distance, url=url)
 
@@ -66,11 +66,11 @@ def ask_osm_around_point_np(coord_row, distance=100, lat_index=0, lng_index=1, u
     Example:
     np.apply_along_axis(ask_osm_around_point_np, 1, coords)
 
-    :param coord_row:
-    :param distance:
-    :param lat_index:
-    :param lng_index:
-    :param url:
-    :return:
+    :param coord_row: a numpy array row with wgs84 coordinates in fields at lat_index, lng_index
+    :param distance:  radius in meters
+    :param lat_index: index of latitude coordinate
+    :param lng_index: index of longitude coordinate
+    :param url:       API address
+    :return:          query results in json
     """
     return ask_osm_around_point(lat=coord_row[lat_index], lng=coord_row[lng_index], distance=distance, url=url)
