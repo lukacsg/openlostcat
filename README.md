@@ -1044,7 +1044,7 @@ Parameters
  
  ```categorizer = MainOsmCategorizer('rules/publictransport_rules.json')```
  
--
+___
 
 ```categorize(osm_json_dict)```
 
@@ -1061,7 +1061,7 @@ Example
 ```categorizer.categorize(osm_neighborhood_railway_station)```
 ```categorizer.categorize(ask_osm_around_point(47.5001, 19.0247, distance = 300))```
  
- -
+___
  
 ```categorizer.get_categories_enumerated_key_map()```
  
@@ -1077,7 +1077,7 @@ Example
 
 ```categorizer.get_categories_enumerated_key_map()```
 
----
+___
 
 
 ```Print()```
@@ -1110,7 +1110,7 @@ Parameters
             out tags center;""")
  ```
  
- -
+___
 
 ```ask_osm_around_point(lat, lng, distance=100, url=overpass_url)```
 
@@ -1128,7 +1128,7 @@ Parameters
  
  ```ask_osm_around_point(47.5001, 19.0247, distance = 300)```
  
- -
+___
  
 ```ask_osm_around_point_df(df_row, distance=100, url=overpass_url)```
 
@@ -1147,8 +1147,7 @@ Parameters
  _or_  
  ```df.apply(ask_osm_around_point_df, axis = 1)```
  
- -
-
+___
 
 ```ask_osm_around_point_np(coord_row, distance=100, lat_index=0, lng_index=1, url=overpass_url)```
 
