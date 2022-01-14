@@ -858,8 +858,7 @@ And similarly:
 }
 ```
 ```
-{{"public_transport": ["stop_position", "platform"] }, 
-        {"wheelchair": [true, "designated"]} 
+{
     "__OR_": [
         { "__NOT_": { "public_transport": ["stop_position", "platform"] } }, 
         { "__NOT_": { "wheelchair": [true, "designated"] } }
