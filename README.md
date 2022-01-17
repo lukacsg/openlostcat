@@ -64,7 +64,7 @@ based on logical rules defined in JSON for tags of OpenStreetMap objects located
 
   * Existential (ANY) and universal (ALL) quantification (from item-level to category-level; ANY matches if the filtered tag bundle set is nonempty, ALL matches if it equals its non-filtered original)
   
-  * Common-sense default quantifier wrapping for filters (such as ANY for atomic filters, ALL for implications)
+  * Common-sense default quantifier wrapping for filters (such as ANY for atomic filters, ALL for implications) with logical robustness yielding similar default quantifiers for equivalent subformulae
 
   * Boolean combinations of category-level (quantified) rule subexpressions: AND, OR, NOT and implication for single true/false-valued expressions
   
@@ -228,14 +228,21 @@ Such conditions can be directly used to define a category, as in the following e
 
 OpenStreetMap tags are strings. OpenLostCat can consume other JSON data types and it converts them to strings in the following way:
 
-* numers are translated to strings in the conventional way,
+* numbers are translated to strings in the conventional way,
 * booleans are translated to strings, in the OpenStreetMap style: true to "yes" and false to "no",
-* null values are treated in a specific way: if a null value is added to the list of accepted values for a tag then the absence of the tag counts as a match (optionality). See more details and examples in further sections.
+* null values are treated in a specific way: if a null value is added to the list of accepted values for a tag then the absence of the tag counts as a match (optionality). If a single null value is specified as a value, then the tag must be missing. See more details and examples in further sections.
+* an empty JSON object (opening and closing curly braces) is interpreted as a placeholder for any value, that means the filter matches if the tag is present regardless of its actual value. 
 
 For instance, the following example condition matches any location where a map object with OpenStreetMap tag `subway=yes` is found:
 
 ```
 { "subway": true }
+```
+
+The following example condition matches any location where a `public_transport` tag found with any value:
+
+```
+{ "public_transport": {} }
 ```
 
 ### Multiple Tag-Value Checking (_AND_)
@@ -308,11 +315,31 @@ In the following example, a supermarket must be found with no explicit wheelchai
 }
 ```
 
-### Checking the Existence or Absence of a Tag (_null_ value)
+If there is no positive condition in direct conjunction with one or more negated (NOT) conditions, then the way of rule interpretation changes:
+Applying to sets of tag bundles, the negation (or multiple negations) will become a universal condition, that is, a category defined by a single negation or a conjunction of atomic negations will match only if all queried map elements in its proximity matches the condition. With the following example, it means each element must not be a supermarket, that is, if used directly as a category definition, it matches only the locations without any supermarkets: 
+
+```
+{
+    "__NOT_": { "shop": "supermarket" }
+}
+```
+
+Similarly, the following condition used as a direct category definition will match only if there is no barrier-free supermarket in the vicinity. See more details in the section about quantifier wrapping in detail below.
+
+
+```
+{
+    "__NOT_1": { "shop": "supermarket" },
+    "__NOT_2": { "wheelchair": [ true, "designated" ] }
+}
+```
+
+
+### Checking the Existence or Absence of a Tag (_null_ value and empty object as value)
 
 Using a _null_ JSON value as a tag value in OpenLostCat conditions means a no-value, that is, the tag named should be missing (or, if not missing, must have the other values listed).
 
-In the following example, matching means a map object must be present in the proximity of the location in question with _public\_transport=yes_ having no subway tag at all:
+In the following example, matching means a map object must be present in the proximity of the location in question with _public\_transport=yes_ having no subway tag at all (in other terms, it means a non-subway public transport availability):
 
 ```
 {
@@ -330,13 +357,37 @@ Here, the _subway_ tag must either have the value of "no" or is missing (by at l
 }
 ```
 
-If we want to formulate a condition for the existence of a tag without any prescribed value(s), we should negate the null-condition.
-
+If we want to formulate a condition for the existence of a tag without any prescribed value(s), we use the empty object notation.
 The following example matches wherever a map object is found nearby with a _public\_transport_ tag with any value:
 
 ```
 {
+    "public_transport": {}
+}
+```
+
+This is equivalent with negating the null-condition (see below) if used together with other filters, however, only if at least one positive condition is added in conjunction so that it will not turn into a universal filter (see the previous section):
+
+```
+{
     "__NOT_": { "public_transport": null }
+}
+```
+
+While the above two formulae if kept standalone are not equivalent with each other, the following two formulae are equivalent as they become both existential (looking for at least one matching element, which is a barrier-free and has a public transport tag with any value). See more details in the section about quantifier wrapping in detail below.
+
+
+```
+{
+    "public_transport": {},
+    "wheelchair": [ true, "designated" ]
+}
+```
+
+```
+{
+    "__NOT_": { "public_transport": null }
+    "wheelchair": [ true, "designated" ]
 }
 ```
 
@@ -489,10 +540,38 @@ The implication may have multiple premises and a single conclusion. In such case
 
 An implication condition being evaluated for a single object (tag bundle) is basically equivalent to a disjunction (_OR_ condition) where all its premises are negated and its single conclusion remains positive. Therefore, if any of the premises evaluates to false, the implication becomes true for the object (tag bundle) without looking at its conclusion or further premises.
 
-Applying to sets of tag bundles, the implication is in fact a universal condition, that is, a category defined by a single implication will match only if _all_ queried map elements in its proximity matches the condition. 
+Applying to sets of tag bundles, the implication is in fact usually becomes a universal condition (if it contains only atomic filters then always), that is, a category defined by a single implication will match only if _all_ queried map elements in its proximity matches the condition. 
 In the example above, it means each element having a _public\_transport_ tag with either a _stop\_position_ or _platform_ value must have a _wheelchair_ tag as well with the value _yes_ or _designated_.
 
-Warning! From the above, it follows that the truth of implication does not mean there is any map object in the proximity with the given premises. The above example rules will match even if there is no public transport station in the proximity.
+Warning! From the above, it follows that the truth of implication does not mean there is any map object in the proximity with the given premises. The above example rules will match even if there is no public transport station in the proximity. To fix this, an explicit existential condition must be added as follows (see more details in the Any-condition section):
+
+```
+{
+    "__IMPL_": [ 
+        {"public_transport": ["stop_position", "platform"] }, 
+        {"subway": true},
+        {"wheelchair": [true, "designated"]} 
+    ],
+    "__ANY_": {
+        "public_transport": ["stop_position", "platform"]
+    }
+}
+```
+
+Or, similarly:
+
+```
+{
+    "__IMPL_": [ 
+        {"public_transport": ["stop_position", "platform"] }, 
+        {"subway": true},
+        {"wheelchair": [true, "designated"]} 
+    ],
+    "__ANY_": [
+        {"public_transport": ["stop_position", "platform"] }
+    ]
+}
+```
 
 ### All-Condition (_ALL_, universal quantification)
 
@@ -507,7 +586,7 @@ It naturally makes sense with negated conditions, as seen in the following examp
 }
 ```
 
-The last implication in the previous section is logically equivalent with the following condition, literally stating that each map object in the proximity must either not be a public transport stop or platform, or not being tagged with subway=yes, or be wheelchair-accessible, for the location to belong to the category defined by this rule:
+The last single implication occured in the previous section is logically equivalent with the following condition, literally stating that each map object in the proximity must either not be a public transport stop or platform, or not being tagged with subway=yes, or be wheelchair-accessible, for the location to belong to the category defined by this rule:
 ```
 {
     "__ALL_": [
@@ -518,9 +597,25 @@ The last implication in the previous section is logically equivalent with the fo
 }
 ```
 
-Note that whenever a reference to a quantified (sub)expression is defined, its name must start with `##`. More explanation follows. 
-
 Warning! If the input set of map objects in the proximity happens to be empty, the result of a universal quantification for the empty set will be `true`.
+
+To avoid this, a combined formula with the existential part follows, being equivalent to the last two formulae in the previous section (see more on ANY in the next section):
+
+```
+{
+    "__ALL_": [
+         { "__NOT_": { "public_transport": ["stop_position", "platform"] },
+         { "__NOT_": { "subway": true },
+         { "wheelchair": [true, "designated"] }
+    ],
+    "__ANY_": {
+        "public_transport": ["stop_position", "platform"]
+    }    
+}
+```
+
+
+Note that whenever a reference to a quantified (sub)expression is defined, its name must start with `##`. More explanation follows. 
 
 ### Any-Condition (_ANY_, existential quantification)
 
@@ -538,7 +633,7 @@ The following two rule examples are equivalent when they define a category witho
 }
 ```
 
-An explicit existential quantification makes sense, for example, if we want a location to have multiple facitilites in its proximity, in order to be put into a certain category. The following example is a rule matching a location which has both a light-rail and a subway stop in its proximity:
+An explicit existential quantification makes sense, for example, if we want a location category which states to have multiple facitilites in its proximity with tag conditions not being applied to the same object. The following example is a rule which matches a location having both a light-rail and a subway stop in its proximity, which might be tags of different geographical objects:
 
 ```
 {
@@ -568,10 +663,12 @@ then it is already complete. If not, OpenLostCat wraps the expression implicitly
 
 Therefore, each rule defining a category must be quantified, either explicitly or implicitly. This results in our language having two levels of (sub)expression:
 * _Item-level_ (a.k.a. _filter-level_) subexpressions are non-quantified expressions being evaluated on an input set of queried map objects in the proximity of the location one-by-one, 
-thus resulting a subset of their input set with the matching map objects (actually, the tag bundles of them).
+thus resulting a subset of their input set with the matching map objects (actually, the tag bundles of them). They can be either
+  * Atomic filters or constants (true/false) or
+  * Compound expressions formed using logical connectives (and, or, not, implication), which function similarly to set operatios (resulting the actual set of matching map objects).
 * _Category-level_ (a.k.a. _bool-level_) (sub/)expressions are (explicitly or implicitly) quantified expressions resulting a single boolean value. 
-  * _Quantifiers_ operate on item-level subexpressions and produce a single aggregated boolean value, 
-  * Other operations on the category level work with boolean inputs and produce boolean results.
+  * _Quantifiers_ operate on item-level subexpressions and produce a single aggregated boolean value (from the matching set of objects, wheter it is empty or equals the full set), 
+  * Other logical operations (and, or, not, implication) on the category level work with single boolean inputs and produce boolean results.
 
 ### Complex Rule Cases
 
@@ -625,7 +722,7 @@ Considering implicit quantifier wrapping, the above expression is equivalent wit
 
 Note that one of the quantifiers must be kept, since it will explicitly raise the level of expression to the category (bool) level, enforcing an implicit quantification of the other operand. If both quantifiers were omitted, the expression would remain on the item (filter) level, and therefore, the whole as a conjunction (AND condition) would be implicitly quantified, which would not be equivalent with the above. 
 
-Nor the explicit `__AND_` condition cannot be left out from the latter variant, since otherwise the atomic filters would be quantified one by one.
+Nor the explicit `__AND_` condition cannot be left out from the latter variant, since otherwise the atomic filters would be quantified one by one, meaning the two tags may belong to different geographical objects.
 
 ### The Two Types of References (# vs. ##)
 
@@ -713,14 +810,14 @@ The defined references can be (re)used for creating other categories in a simple
         "any-barrier-free-facility-category": "#barrier-free"
 ```
 
-Note that the last category is defined using an item(filter)-level reference expression, which is being wrapped by an existential quantifier. In other terms, the last category definition is a shorthand of the following one:
+Note that the last category is defined using an item(filter)-level reference expression consisting only a non-negated atomic filter, which is being wrapped by an existential quantifier implicitly. In other terms, the last category definition is a shorthand of the following one:
 ```
         "any-barrier-free-facility-category": { "__ANY_": "#barrier-free" }
 ```
 
 ### Quantifier Wrapping in Detail
 
-If a non-quantified (item-level, a.k.a. filter-) (sub)expression appears somewhere where a quantified (category-level, a.k.a. bool-) expression is required, OpenLostCat wraps the (sub)expression implicitly with a quantifier. In most cases the wrapper becomes an `__ANY_`, which means the default usual interpretation of non-quantified expressions is existential, that is, to find if there is at least one map object in the proximity of the location matching the expression as a rule. 
+If a non-quantified (item-level, a.k.a. filter-) (sub)expression appears somewhere where a quantified (category-level, a.k.a. bool-) expression is required, OpenLostCat wraps the (sub)expression implicitly with a quantifier. In most cases the wrapper becomes an `__ANY_`, which means the default usual interpretation of non-quantified expressions is existential, that is, to find if there is at least one map object in the proximity of the location matching the expression as a rule. However, there are cases when the default quantifier becomes `__ALL_` as will be explained below. 
 
 Recall from the section of any-conditions the following examples as being equivalent, with the first one being a shorthand for the second one:
 
@@ -734,9 +831,31 @@ Recall from the section of any-conditions the following examples as being equiva
 }
 ```
 
-Any combinations of such conditions with _and_, _or_, or _not_ logical constructs will be wrapped by default with `__ANY_` when directly used as the definition of a category.
+Any combinations of such positive atomic filter conditions with _and_, _or_ constructs will be wrapped by default with `__ANY_` when directly used as the definition of a category.
 
-However, for instance, in the case of the implication, the default wrapper quantifier is `__ALL_`. Therefore, the following two examples are equvalent, with the first one being a shorthand for the second one:
+However, for instance, in the case of the negation or the implication, the default wrapper quantifier is `__ALL_`. Therefore, the following two examples are equvalent, with the first one being a shorthand for the second one:
+
+```
+{ 
+    "__NOT_": { 
+        "public_transport": ["stop_position", "platform"],
+        "wheelchair": [true, "designated"]
+    }
+}
+```
+
+```
+{
+    "__ALL_": {
+        "__NOT_": { 
+            "public_transport": ["stop_position", "platform"],
+            "wheelchair": [true, "designated"]
+        }
+    }
+}
+```
+
+The same equivalence holds for the following implication expressions:
 
 ```
 { 
@@ -758,7 +877,8 @@ However, for instance, in the case of the implication, the default wrapper quant
 }
 ```
 
-The and-combination of implication subexpressions will also result in universal quantification. In other words, defining two or more implication rules for a single category will be interpreted as each of them must hold for all map objects in the proximity of the location, to be in the defined category. It is, in fact, follows the common-sense interpretation of combining implication rules. 
+
+The and-combination of negation or implication subexpressions will also result in universal quantification. In other words, defining two or more negation or implication rules for a single category will be interpreted as each of them must hold for all map objects in the proximity of the location, to be in the defined category. It is, in fact, follows the common-sense interpretation of combining negation or implication rules. 
 
 The following examples are therefore equivalent, with the first one being a shorthand of the second one, meaning a place belongs to the category being defined if _all_ nearby public transport services and supermarkets are wheelchair-accessible:
 
@@ -798,13 +918,21 @@ the set(filter)-level (sub)expression will be wrapped by a quantifier to become 
 
 Each set(filter)-level operator type has its default wrapper quantifier for the cases 
 wherever a category(bool)-level (sub)expression is expected and it must be wrapped to become such:
-* wrapper quantifier of an atomic (or constant boolean) filter will default to ANY
-* wrapper quantifier of implication will default to ALL
-* wrapper quantifier of a 'not' or #ref is inherited from its subexpression (operand)
+* wrapper quantifier of an atomic filter (or the boolean constant false) will default to ANY
+* wrapper quantifier of a 'not' switches the inherited default wrapper quantifier from its subexpression (operand) between ANY and ALL
+* wrapper quantifier of implication will default to the wrapper quantifier corresponding to its equivalent rewrite with not-or (usually becomes ALL, esp. when contains positive subexpressions only),
+* wrapper quantifier of a #ref is inherited from its subexpression (operand)
 * wrapper quantifier of 'and' will default to ALL if each of its subexpressions (operands) defaults to ALL, otherwise it will default to ANY
 * wrapper quantifier of 'or' will default to ALL if at least one subexpressions (operands) defaults to ALL, otherwise it will default to ANY.
 
 For complex cases, it is however advised to use explicit quantifiers as it is easier to be followed by human eyes.
+
+This way, logically equvalent (sub)formulae will imply the same implicit quantifier, as implicit quantification depends not on the way the formula is expressed but on the eventual 'negatedness' of its variable-dependant parts. If an odd number of nested negations are present the implicit quantifier becomes universal, if an even or no nested negation is present then existential. If both types of negation nesting occurs in a formula, then the implication logic is followed eventually.
+
+In more sophisticated logics terms, we can state that implicit quantification for a formula is defined generally as _existential_, except when _each_ of the disjunctive subformulas in its _conjunctive normal form_ has _at least one negated_ atomic operand (or an operand being the _false_ boolean constant). In that case, the implicit quantifier applied will be _universal_. This principle is exactly that of Zeman (1967) in his paper entitled _A System of Implicit Quantification_ (The Journal of Symbolic Logic 32(4), pp 480-504).
+
+This is in correspondance with the common-sense interpretation that in a large set with a lot of variety, positive conditions implicitly considered as existential and negative statements as universal, and the implication as universal. 
+
 
 ### Expressive Power and Algebraic Equivalences
 
@@ -828,9 +956,13 @@ A classical equivalence is the exchangeability of quantifiers with negation, whi
 }
 ```
 
-Note that the quantifier ANY cannot be omitted from the second variant, because in that case, the implicit quantification would have been done on the top level of the expression, meaning there is a map object nearby not having a highway tag with any of the listed values. This would almost always evaluate to true, wherever there is any map object not tagged with highway in the proximity of the location. 
+Note that both of the above formulae are equivalent with the one below, as it will actually produce the first one above by implicit quantification:
 
-For a similar reason, nor can the quantifier ALL be omitted from the first variant, because the implicit quantification of the operator NOT is ANY, meaning there is a map object nearby not having a highway tag with any of the listed values.
+```
+{
+    "__NOT_" : {"highway": ["primary", "secondary"]}
+}
+```
 
 The above quantifier-negation interchangeability can be derived from the so-called _De Morgan_ rules, stating the interchangeability of negation with conjunctive and disjunctive conditions in the following way. The two expressions below are equivalent:
 
@@ -865,6 +997,8 @@ And similarly:
     ]
 }
 ```
+
+Note that for each of the four formulae above, the implicit wrapper quantifier will be ` __ALL_ `.
 
 Equivalences present on the level of multiple categories as well.
 
@@ -995,8 +1129,8 @@ KeyValueFilterRule ::=
     "__CONST_.*": bool |
     AtomicFilter
 
-AtomicFilter ::= "[^_].*" : ValueOrList
-ValueOrList ::= SingleValue | [SingleValue, ...]
+AtomicFilter ::= "[^_].*" : ValueOrListOrEmptyObj
+ValueOrListOrEmptyObj ::= SingleValue | [SingleValue, ...] | { }
 SingleValue ::= bool | str | int | null
 ```
 
@@ -1196,7 +1330,7 @@ The operators used in category and reference definitions are the following:
 |  Name *        |  Operator Level {Default quantifier wrapper}                 |  Description                                                                                                          |  Key-value syntax  |  Standalone syntax  |  Example  |
 |  ----         |  -----                                                        |  -----------                                                                                                          |  ----------------  |  -----------------  |  -------  |
 | atomic filter |  item(filter) {ANY}                                           |  Tests whether a tag value equals the given value, or any of the given values (list case), or is missing (null)       |  `"key" : "value"`, `"key" : ["value1", ...]`, `"key" : null` | - | `"public_transport" : "stop_position"`, `"public_transport" : ["stop_position", "platform"]` |
-| const         |  item(filter) {CONST}                                         |  Always true or false, according to the value given.                                                                  |  `"__CONST_xy" : true`, ˙"__CONST_xy": false˙ | `true`, `false` | `true` |
+| const         |  item(filter) {true: ALL, false: ANY}                                         |  Always true or false, according to the value given.                                                                  |  `"__CONST_xy" : true`, ˙"__CONST_xy": false˙ | `true`, `false` | `true` |
 | CONST         |  category(bool)                                               |  Always true or false, according to the value given.                                                                  |  `"__CONST_xy" : true`, ˙"__CONST_xy": false˙ | `true`, `false` | `true` |
 | ANY           |  item(filter) --> category(bool)                              |  Tests whether the truth set of the operand is not empty (there is at least one item for which the operand it true).  |  `"__ANY_xy" : ...` | - |  `"__ANY_": { "public_transport" : "stop_position" }` |
 | ALL           |  item(filter) --> category(bool)                              |  Tests whether the truth set of the operand equals to the input set (the operand it true for all items).              |  `"__ALL_xy" : ...` | - |  `"__ALL_": { "public_transport" : null }` |
@@ -1206,9 +1340,9 @@ The operators used in category and reference definitions are the following:
 | AND           |  category(bool)                                               |  True if all operands are true.                                                                                       |  `"__AND_xy" : { ..., ..., ..... }` | `{ ..., ..., ..... }` | `{ "__REF_" : "##pt_accessible", "__ANY_" : { "shop" : "supermarket" } } }` |
 | or            |  item(filter) {ALL if either operand wraps to ALL, else ANY}  |  True if either of the operands is true (unites the truth sets of the operands).                                      |  `"__OR_xy" : [ ..., ..., ..... ]` | `[ ..., ..., ..... ]` | `[ "#pt_platform", { "shop" : "supermarket" } ]` |
 | OR            |  category(bool)                                               |  True if either of the operands is true.                                                                              |  `"__OR_xy" : [ ..., ..., ..... ]` | `[ ..., ..., ..... ]` | `[ "##pt_accessible", { "__ANY_" : { "shop" : "supermarket" } } ]` |
-| not           |  item(filter) {inherits from operand}                         |  Negates the truth value of the operand (forms the complementer set of the truth set of the operand).                 |  `"__NOT_xy" : ...` | - | `"__NOT_" : { "shop" : null }` |
+| not           |  item(filter) {switches ALL<->ANY inherited from operand}                         |  Negates the truth value of the operand (forms the complementer set of the truth set of the operand).                 |  `"__NOT_xy" : ...` | - | `"__NOT_" : { "shop" : null }` |
 | NOT           |  category(bool)                                               |  Negates the truth value of the operand.                                                                              |  `"__NOT_xy" : ...` | - | `"__NOT_" : "##pt_accessible"` |
-| impl          |  item(filter) {ALL}                                           |  Tests whether the last operand (conclusion) is implied by the other operands (premises).                             |  `"__IMPL_xy" : [ ..., ..., ..... ]` | - | `"__IMPL_" : [ "#pt_platform", { "wheelchair" : "yes" } ]` |
+| impl          |  item(filter) {Ihnerits from the OR operand of its rewritten format (usually ALL)}                                           |  Tests whether the last operand (conclusion) is implied by the other operands (premises).                             |  `"__IMPL_xy" : [ ..., ..., ..... ]` | - | `"__IMPL_" : [ "#pt_platform", { "wheelchair" : "yes" } ]` |
 | IMPL          |  category(bool)                                               |  Tests whether the last operand (conclusion) is implied by the other operands (premises).                             |  `"__IMPL_xy" : [ ..., ..., ..... ]` | - | `"__IMPL_" : [ "##pt_accessible", { "__ANY_" : { "shop" : "supermarket" } } ]` |
 
 Remark: * Names are written always in uppercase in rule defitions. Here, writing of names follow the way they are output by the OpenLostCat AST console log (lowercase: set-level, uppercase: category-level operators).   
