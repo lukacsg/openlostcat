@@ -159,7 +159,7 @@ class AtomicFilter(AbstractFilterOperator):
     Accepting a key - value pair or a key - value list for matching with the tag bundle set given
     """
 
-    str_template = "{{{key} : {value}}}, is_optional_key = {is_optional_key}"
+    str_template = "{{{key} : {value}}}, is_optional_key = {is_optional_key}, is_any_value = {is_any_value}"
 
     @staticmethod
     def __parse_single_value(dat):
@@ -174,26 +174,36 @@ class AtomicFilter(AbstractFilterOperator):
             str: lambda s: s,
             type(None): lambda x: None,
             list: lambda x: error("Array is not allowed here: ", x),
-            dict: lambda x: error("Key-value dictionary is not allowed here: ", x)
+            dict: lambda x: error("Key-value dictionary is not allowed here: ", x)  # empty dict is allowed in __parse_values and handled there
         }
         return switcher.get(type(dat),
                             lambda x: error("Unexpected element. Value type is not allowed here: ", x))(dat)
 
     @staticmethod
     def __parse_values(value):
+        """Gets one or more values from value
+
+        :param value: value(s) as list, dict (only empty allowed interpreted as any value will be accepted), 
+                      string, bool or int (or None as null meaning no value = the tag itself does/should not occur)
+        :return: value in a list or None if any is accepted (None as an element means no value = the tag itself does/should not occur)
+        """
         if isinstance(value, list):
             return {AtomicFilter.__parse_single_value(e) for e in value}
+        else if isinstance(value, dict) and not value:
+            # empty dict is turned to a None meaning any value is accepted (not the same as {None}!)
+            return None
         else:
             return {AtomicFilter.__parse_single_value(value)}
 
     def __init__(self, key, value):
         """Initializer
         :param key: tag name string
-        :param value: tag value (various types allowed) or a value list
+        :param value: tag value (various types allowed, empty object is for any value) or a value list
         """
         self.key = key
         self.values = AtomicFilter.__parse_values(value)
-        self.is_optional_key = None in self.values
+        self.is_any_value = self.values is None
+        self.is_optional_key = not self.is_any_value and (None in self.values)
         if self.is_optional_key:
             self.values = set(filter(None, self.values))
 
@@ -202,13 +212,14 @@ class AtomicFilter(AbstractFilterOperator):
 
     def __check_condition(self, tag_bundle):
         return (self.is_optional_key and self.key not in tag_bundle) or (
+                self.is_any_value and self.key in tag_bundle) or (
                 self.key in tag_bundle and tag_bundle[self.key] in self.values)
 
     def apply(self, tag_bundle_set):
         return {tag_bundle for tag_bundle in tag_bundle_set if self.__check_condition(tag_bundle)}
 
     def __str__(self):
-        return self.str_template.format(key=self.key, value=self.values, is_optional_key=self.is_optional_key)
+        return self.str_template.format(key=self.key, value=self.values, is_optional_key=self.is_optional_key, is_any_value=self.is_any_value)
 
 
 class FilterConst(AbstractFilterOperator):
